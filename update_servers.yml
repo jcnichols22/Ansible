@@ -13,3 +13,18 @@
         upgrade: dist
         autoremove: yes
         autoclean: yes
+
+- name: Update Media Server
+  hosts: media_server
+  become: yes
+
+  tasks:
+    - name: Update package cache
+      apt:
+        update_cache: yes
+
+    - name: Upgrade all packages
+      apt:
+        upgrade: dist
+        autoremove: yes
+        autoclean: yes
