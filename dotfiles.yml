@@ -1,0 +1,26 @@
+---
+- name: Set up dotfiles and bash aliases
+  hosts: all
+  gather_facts: yes
+
+  tasks:
+    - name: Clone dotfiles repository
+      ansible.builtin.git:
+        repo: https://github.com/jcnichols22/dotfiles.git
+        dest: "{{ ansible_user_dir }}/dotfiles"
+        clone: yes
+        update: yes
+
+    - name: Create symlink for .bash_aliases
+      ansible.builtin.file:
+        src: "{{ ansible_user_dir }}/dotfiles/.bash_aliases"
+        dest: "{{ ansible_user_dir }}/.bash_aliases"
+        state: link
+
+    - name: Ensure .bashrc sources .bash_aliases
+      ansible.builtin.lineinfile:
+        path: "{{ ansible_user_dir }}/.bashrc"
+        regexp: '^\s*\.\s*~/.bash_aliases'
+        line: '. ~/.bash_aliases'
+        insertafter: EOF
+        create: yes
