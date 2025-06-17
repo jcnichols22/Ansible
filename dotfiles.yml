@@ -1,26 +1,17 @@
 ---
-- name: Set up dotfiles and bash aliases
-  hosts: all
-  gather_facts: yes
-
+- hosts: all
+  become: false
   tasks:
-    - name: Clone dotfiles repository
+    - name: Clone dotfiles repository to home directory
       ansible.builtin.git:
-        repo: https://github.com/jcnichols22/dotfiles.git
-        dest: "{{ ansible_user_dir }}/dotfiles"
-        clone: yes
-        update: yes
+        repo: git@github.com:jcnichols22/dotfiles.git
+        dest: ~/dotfiles
+        accept_hostkey: yes
+        # If you have a custom SSH key, add: key_file: /path/to/ssh/key
+        # If you forward your agent, ensure ssh-agent forwarding is enabled in ansible.cfg[1][3][4]
 
-    - name: Create symlink for .bash_aliases
+    - name: Symlink .bash_aliases to home directory
       ansible.builtin.file:
-        src: "{{ ansible_user_dir }}/dotfiles/.bash_aliases"
-        dest: "{{ ansible_user_dir }}/.bash_aliases"
+        src: ~/dotfiles/.bash_aliases
+        dest: ~/.bash_aliases
         state: link
-
-    - name: Ensure .bashrc sources .bash_aliases
-      ansible.builtin.lineinfile:
-        path: "{{ ansible_user_dir }}/.bashrc"
-        regexp: '^\s*\.\s*~/.bash_aliases'
-        line: '. ~/.bash_aliases'
-        insertafter: EOF
-        create: yes
