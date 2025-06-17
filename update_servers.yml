@@ -1,7 +1,7 @@
 ---
 - name: Update Proxmox servers
   hosts: proxmox_servers
-  become: yes
+  become: true
 
   tasks:
     - name: Update package cache
@@ -16,7 +16,7 @@
 
 - name: Update Media Server
   hosts: media_server
-  become: yes
+  become: true
 
   tasks:
     - name: Update package cache
