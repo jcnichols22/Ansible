@@ -1,0 +1,9 @@
+---
+- name: Install Git on all servers
+  hosts: all
+  become: yes
+  tasks:
+    - name: Ensure Git is installed
+      ansible.builtin.package:
+        name: git
+        state: present
