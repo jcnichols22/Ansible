@@ -50,10 +50,8 @@
         groups: sudo
         append: yes
 
-    - name: add user ansible to sudo group
-      copy:
-        src: /Ansible/files/sudoer_ansible
-        dest: /etc/sudoers.d/sudoer_ansible
-        owner: root
-        group: root
-        mode: "0440"
+    - name: add user ansible to sudo group with NOPASSWD
+      lineinfile:
+        path: /etc/sudoers.d/sudoer_ansible
+        line: "ansible ALL=(ALL) NOPASSWD: ALL"
+        state: present
