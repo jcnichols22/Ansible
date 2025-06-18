@@ -28,13 +28,21 @@
         name: ansible
         shell: /bin/bash
 
-    - name: add Ansible ssh key
+    - name: add Ansible ssh key for josh
       authorized_key:
-        user: josh, ansible
+        user: josh
         state: present
         key: |
-          ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICPM8xsQ9Y+s7d5cBCBDo8lleyOui7gttZqkoEP+6MNN ansible
           ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFyElCMNFojFX/mLWuIFAzKOzZlhJqgkxefOzQJ6bI/b josh default
+          ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICPM8xsQ9Y+s7d5cBCBDo8lleyOui7gttZqkoEP+6MNN ansible
+
+    - name: add Ansible ssh key for ansible
+      authorized_key:
+        user: ansible
+        state: present
+        key: |
+          ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFyElCMNFojFX/mLWuIFAzKOzZlhJqgkxefOzQJ6bI/b josh default
+          ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICPM8xsQ9Y+s7d5cBCBDo8lleyOui7gttZqkoEP+6MNN ansible
 
     - name: add user josh to sudo group
       user:
@@ -48,4 +56,4 @@
         dest: /etc/sudoers.d/sudoer_ansible
         owner: root
         group: root
-        mode: '0440'
+        mode: "0440"
