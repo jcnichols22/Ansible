@@ -1,4 +1,5 @@
 ---
+# This playbook updates all packages on the specified servers.
 - name: Update Ubuntu servers
   hosts: proxmox_servers, media_server
   become: true

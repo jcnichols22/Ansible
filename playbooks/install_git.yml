@@ -1,4 +1,5 @@
 ---
+# This playbook installs Git on all servers in the inventory.
 - name: Install Git on all servers
   hosts: all
   become: true

@@ -1,4 +1,5 @@
 ---
+# This playbook updates the bash aliases from a Git repository.
 - name: Update bash aliases from repository
   hosts: all
   become: yes

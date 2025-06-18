@@ -1,0 +1,41 @@
+---
+# This playbook is used to onboard a new server by installing necessary packages, adding users, and configuring sudo permissions.
+- name: Server Onboarding
+  hosts: all
+  tasks:
+
+  - name: install sudo package
+   apt:
+     name: sudo
+     update_cache: yes
+     cache_valid_time: 3600
+     state: latest
+
+  - name: install git package
+    apt:
+      name: git
+      update_cache: yes
+      cache_valid_time: 3600
+      state: latest
+
+  - name: add user josh
+    user:
+      name: josh
+      shell: /bin/bash
+    
+  - name: add Ansible ssh key
+    authorized_key:
+      user: josh
+      state: present
+      key: |
+        ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICPM8xsQ9Y+s7d5cBCBDo8lleyOui7gttZqkoEP+6MNN ansible
+        ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFyElCMNFojFX/mLWuIFAzKOzZlhJqgkxefOzQJ6bI/b josh default
+      
+
+  - name: add josh to sudo group
+    copy:
+      src: sudoer_josh
+      dest: /etc/sudoers.d/josh
+      owner: root
+      group: root
+      mode: '0440'
