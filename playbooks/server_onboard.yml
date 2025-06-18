@@ -2,7 +2,7 @@
 # This playbook is used to onboard a new server by installing necessary packages, adding users, and configuring sudo permissions.
 - name: Server Onboarding
   hosts: all
-  become
+  become: true
   tasks:
 
   - name: install sudo package
