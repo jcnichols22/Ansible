@@ -18,14 +18,19 @@
         cache_valid_time: 3600
         state: latest
 
-    - name: add user josh
+    - name: Create user josh
       user:
         name: josh
         shell: /bin/bash
 
+    - name: Create user ansible
+      user:
+        name: ansible
+        shell: /bin/bash
+
     - name: add Ansible ssh key
       authorized_key:
-        user: josh
+        user: josh, ansible
         state: present
         key: |
           ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICPM8xsQ9Y+s7d5cBCBDo8lleyOui7gttZqkoEP+6MNN ansible
@@ -36,3 +41,11 @@
         name: josh
         groups: sudo
         append: yes
+
+    - name: add user ansible to sudo group
+      copy:
+        src: sudoer_ansible
+        dest: /etc/sudoers.d/sudoer_ansible
+        owner: root
+        group: root
+        mode: '0440'
