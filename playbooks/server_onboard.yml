@@ -52,7 +52,7 @@
 
     - name: add user ansible to sudo group
       copy:
-        src: sudoer_ansible
+        src: /Ansible/files/sudoer_ansible
         dest: /etc/sudoers.d/sudoer_ansible
         owner: root
         group: root
