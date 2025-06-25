@@ -26,14 +26,14 @@ This repository automates the configuration and management of server infrastruct
 ```text
 ├── ansible.cfg               # Ansible configuration
 ├── inventory/                # Host inventory
-│   ├── hosts                 # Production hosts
-│   └── group_vars/           # Group-specific variables
+│   └── hosts.ini             # Production hosts
 ├── roles/
+│   ├── base/                 # Common tasks for all servers
 │   ├── proxmox/              # Proxmox cluster management
 │   └── media_server/         # Media stack deployment
-└── playbooks/
-    ├── proxmox-setup.yml     # Proxmox cluster configuration
-    └── media-stack.yml       # Media server deployment
+│   ├── workstations/         # Workstation configuration
+├── playbooks/                # Ansible playbooks
+├── files/                    # Files to be used by playbooks
 ```
 
 
