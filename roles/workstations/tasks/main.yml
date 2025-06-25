@@ -1,0 +1,56 @@
+#install vscode ubuntu
+- name: Install Visual Studio Code
+  apt:
+    name: code
+    state: present
+  when: ansible_distribution == "Ubuntu"
+
+#install obsidian ubuntu
+- name: Install Obsidian
+  apt:
+    name: obsidian
+    state: present
+  when: ansible_distribution == "Ubuntu"
+
+#install discord ubuntu
+- name: Install Discord
+  apt:
+    name: discord
+    state: present
+  when: ansible_distribution == "Ubuntu"
+
+#install 1password ubuntu
+- name: Install 1Password
+  apt:
+    name: 1password
+    state: present
+  when: ansible_distribution == "Ubuntu"
+
+#install brave browser ubuntu
+- name: Install Brave Browser
+  apt:
+    name: brave-browser
+    state: present
+  when: ansible_distribution == "Ubuntu"
+
+#install icloud ubuntu
+- name: Install iCloud
+  apt:
+    name: icloud
+    state: present
+  when: ansible_distribution == "Ubuntu"
+
+#install nextcloud desktop ubuntu
+- name: Install Nextcloud Desktop
+  apt:
+    name: nextcloud-desktop
+    state: present
+  when: ansible_distribution == "Ubuntu"
+
+#install tmux ubuntu
+- name: Install Tmux
+  apt:
+    name: tmux
+    state: present
+  when: ansible_distribution == "Ubuntu"
+  

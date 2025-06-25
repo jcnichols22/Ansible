@@ -1,0 +1,26 @@
+#install docker ubuntu
+- name: Install Docker
+  apt:
+    name: docker.io
+    state: present
+  when: ansible_distribution == "Ubuntu"
+
+#install docker compose ubuntu
+- name: Install Docker Compose
+  apt:
+    name: docker-compose
+    state: present
+  when: ansible_distribution == "Ubuntu"
+
+#install proton vpn ubuntu
+- name: Install ProtonVPN
+  apt:
+    name: protonvpn
+    state: present
+  when: ansible_distribution == "Ubuntu"
+
+#clone arr github repo to home directory
+- name: Clone Arr repository
+  git:
+    repo: 'https://github.com/Arr/Arr.git'
+    dest: '~/'
