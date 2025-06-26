@@ -23,4 +23,10 @@
 - name: Clone Arr repository
   git:
     repo: "https://github.com/jcnichols22/Homelab.git"
-    dest: "/home/josh/"
+    dest: "/home/josh/Homelab"
+    version: main
+    update: yes
+    force: yes
+  become: yes
+  become_user: josh
+  when: ansible_distribution == "Ubuntu"
