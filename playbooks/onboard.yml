@@ -4,6 +4,8 @@
 - name: Onboarding
   hosts: all
   become: true
+  vars_files:
+    - users.yml
   pre_tasks:
     - name: Update package cache (Ubuntu/Debian)
       apt:
@@ -14,6 +16,7 @@
         upgrade: dist
         autoremove: true
         autoclean: true
+
   roles:
     - base
 
