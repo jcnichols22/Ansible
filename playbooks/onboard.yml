@@ -1,0 +1,35 @@
+---
+# This playbook is used to onboard a new server by installing necessary packages, adding users, and configuring sudo permissions.
+- name: Onboarding
+  hosts: all
+  become: true
+  pre_tasks:
+    - name: Update package cache (Ubuntu/Debian)
+      apt:
+        update_cache: true
+
+    - name: Upgrade all packages (Ubuntu/Debian)
+      apt:
+        upgrade: dist
+        autoremove: true
+        autoclean: true
+
+    - hosts: all
+      become: true
+      roles:
+        - base
+
+    - hosts: workstations
+      become: true
+      roles:
+        - workstations
+
+    - hosts: proxmox_servers
+      become: true
+      roles:
+        - proxmox_servers
+
+    -hosts: media_servers
+      become: true
+      roles:
+        - media_server

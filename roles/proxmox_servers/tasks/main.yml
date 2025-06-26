@@ -1,0 +1,13 @@
+- name: Install sudo package
+  apt:
+    name: sudo
+    update_cache: yes
+    cache_valid_time: 3600
+    state: latest
+
+- name: Install git package
+  apt:
+    name: git
+    update_cache: yes
+    cache_valid_time: 3600
+    state: latest

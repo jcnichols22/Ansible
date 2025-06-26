@@ -4,6 +4,16 @@
   hosts: all
   become: true
   tasks:
+    - name: Update package cache
+      apt:
+        update_cache: true
+
+    - name: Upgrade all packages
+      apt:
+        # 'upgrade: dist' performs a dist-upgrade, which may remove packages.
+        upgrade: dist
+        autoremove: true
+        autoclean: true
     - name: install sudo package
       apt:
         name: sudo
