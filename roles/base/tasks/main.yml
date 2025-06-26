@@ -41,51 +41,15 @@
   loop: "{{ users }}"
   when: item.nopasswd | default(false)
 
-- name: Ensure home directory exists and is owned by the user
-  file:
-    path: "/home/{{ item.name }}"
-    state: directory
-    owner: "{{ item.name }}"
-    group: "{{ item.name }}"
-    mode: "0755"
-  loop: "{{ users }}"
-
 - name: Clone or update bash aliases repository
   ansible.builtin.git:
     repo: https://github.com/jcnichols22/dotfiles.git
-    dest: "/home/{{ item.name }}/dotfiles"
+    dest: /home/josh/dotfiles
     update: yes
-  loop: "{{ users }}"
-  become: yes
-  become_user: "{{ item.name }}"
-  environment:
-    # This is a workaround for the temp file issue
-    ANSIBLE_REMOTE_TEMP: "/tmp"
 
 - name: Link bash aliases file to home if not already linked
   ansible.builtin.file:
-    src: "/home/{{ item.name }}/dotfiles/.bash_aliases"
-    dest: "/home/{{ item.name }}/.bash_aliases"
+    src: /home/josh/dotfiles/.bash_aliases
+    dest: /home/josh/.bash_aliases
     state: link
     force: yes
-  loop: "{{ users }}"
-  become: yes
-  become_user: "{{ item.name }}"
-  environment:
-    ANSIBLE_REMOTE_TEMP: "/tmp"
-# - name: Clone or update bash aliases repository
-#   ansible.builtin.git:
-#     repo: https://github.com/jcnichols22/dotfiles.git
-#     dest: "/home/{{ item.name }}/dotfiles"
-#     update: yes
-#   loop: "{{ users }}"
-#   become_user: "{{ item.name }}"
-
-# - name: Link bash aliases file to home if not already linked
-#   ansible.builtin.file:
-#     src: "/home/{{ item.name }}/dotfiles/.bash_aliases"
-#     dest: "/home/{{ item.name }}/.bash_aliases"
-#     state: link
-#     force: yes
-#   loop: "{{ users }}"
-#   become_user: "{{ item.name }}"
