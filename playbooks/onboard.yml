@@ -14,22 +14,23 @@
         autoremove: true
         autoclean: true
 
-    - hosts: all
-      become: true
-      roles:
-        - base
+  roles:
+    - role: base
 
-    - hosts: workstations
-      become: true
-      roles:
-        - workstations
+- name: Workstation setup
+  hosts: workstations
+  become: true
+  roles:
+    - role: workstations
 
-    - hosts: proxmox_servers
-      become: true
-      roles:
-        - proxmox_servers
+- name: Proxmox server setup
+  hosts: proxmox_servers
+  become: true
+  roles:
+    - role: proxmox_servers
 
-    - hosts: media_servers
-      become: true
-      roles:
-        - media_server
+- name: Media server setup
+  hosts: media_servers
+  become: true
+  roles:
+    - role: media_server
