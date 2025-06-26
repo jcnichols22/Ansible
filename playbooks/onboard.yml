@@ -1,5 +1,6 @@
 ---
 # This playbook is used to onboard a new server by installing necessary packages, adding users, and configuring sudo permissions.
+
 - name: Onboarding
   hosts: all
   become: true
@@ -13,24 +14,23 @@
         upgrade: dist
         autoremove: true
         autoclean: true
-
   roles:
-    - role: base
+    - base
 
 - name: Workstation setup
   hosts: workstations
   become: true
   roles:
-    - role: workstations
+    - workstations
 
 - name: Proxmox server setup
   hosts: proxmox_servers
   become: true
   roles:
-    - role: proxmox_servers
+    - proxmox_servers
 
 - name: Media server setup
   hosts: media_servers
   become: true
   roles:
-    - role: media_server
+    - media_server
