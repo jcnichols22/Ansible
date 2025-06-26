@@ -14,8 +14,8 @@
         autoremove: true
         autoclean: true
 
-  roles:
-    - role: base
+  # roles:
+  #   - role: base
 
 - name: Workstation setup
   hosts: workstations
