@@ -22,5 +22,5 @@
 #clone arr github repo to home directory
 - name: Clone Arr repository
   git:
-    repo: 'https://github.com/Arr/Arr.git'
+    repo: 'https://github.com/jcnichols22/Homelab.git'
     dest: '~/'
