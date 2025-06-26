@@ -29,7 +29,7 @@
       roles:
         - proxmox_servers
 
-    -hosts: media_servers
+    - hosts: media_servers
       become: true
       roles:
         - media_server
