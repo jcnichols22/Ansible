@@ -4,8 +4,16 @@
 - name: Onboarding
   hosts: all
   become: true
-  vars_files:
-    - users.yml
+  vars:
+  users:
+    - name: josh
+      ssh_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFyElCMNFojFX/mLWuIFAzKOzZlhJqgkxefOzQJ6bI/b josh default"
+      sudo: true
+    - name: ansible
+      ssh_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICPM8xsQ9Y+s7d5cBCBDo8lleyOui7gttZqkoEP+6MNN ansible"
+      sudo: true
+      nopasswd: true
+
   pre_tasks:
     - name: Update package cache (Ubuntu/Debian)
       apt:
