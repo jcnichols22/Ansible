@@ -29,7 +29,7 @@
     groups: sudo
     append: yes
   loop: "{{ users }}"
-  when: "{{ item.sudo | default(false) }}"
+  when: item.sudo | default(false)
 
 - name: Create sudoers file for users with NOPASSWD
   ansible.builtin.lineinfile:
@@ -39,16 +39,9 @@
     line: "{{ item.name }} ALL=(ALL) NOPASSWD: ALL"
     validate: "visudo -cf %s"
   loop: "{{ users }}"
-  when: "{{ item.nopasswd | default(false) }}"
+  when: item.nopasswd | default(false)
 
-- name: Ensure home directory exists and is owned by the user
-  ansible.builtin.file:
-    path: "/home/{{ item.name }}"
-    state: directory
-    owner: "{{ item.name }}"
-    group: "{{ item.name }}"
-    mode: '0755'
-  loop: "{{ users }}"
+
 
 - name: Clone or update bash aliases repository
   ansible.builtin.git:
@@ -56,10 +49,7 @@
     dest: "/home/{{ item.name }}/dotfiles"
     update: yes
   loop: "{{ users }}"
-  become: yes
   become_user: "{{ item.name }}"
-  environment:
-    ANSIBLE_REMOTE_TEMP: "/tmp"
 
 - name: Link bash aliases file to home if not already linked
   ansible.builtin.file:
@@ -68,7 +58,4 @@
     state: link
     force: yes
   loop: "{{ users }}"
-  become: yes
   become_user: "{{ item.name }}"
-  environment:
-    ANSIBLE_REMOTE_TEMP: "/tmp"
