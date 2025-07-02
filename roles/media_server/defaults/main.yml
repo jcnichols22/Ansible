@@ -1,0 +1,9 @@
+## This file defines the default variables for the media server role in an Ansible playbook.
+media_server_packages:
+  - docker.io
+  - docker-compose
+  - protonvpn
+
+media_user: josh
+media_repo: "https://github.com/jcnichols22/Homelab.git"
+media_repo_dest: "/home/{{ media_user }}/Homelab"

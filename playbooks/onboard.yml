@@ -1,47 +1,67 @@
 ---
-# This playbook is used to onboard a new server by installing necessary packages, adding users, and configuring sudo permissions.
-
+# what this playbook does:
+# - Updates and upgrades apt packages
+# - Ensures snapd is installed
+# - Upgrades all snap packages
+# - Applies roles for base setup, workstations, Proxmox servers, and media server
+# - Creates users with SSH keys and sudo privileges
+# - Installs required packages for each role
+# - Configures sudoers for users with NOPASSWD where specified
+# - Clones dotfiles repository for each user
+# - Installs desktop applications via snap and apt
+# - Sets up a media server environment with Docker and Docker Compose
+# - Clones a media server repository for Docker Compose files
+# - Ensures the playbook is idempotent and can be run multiple times without issues
 - name: Onboarding
   hosts: all
   become: true
-  vars:
-    users:
-      - name: josh
-        ssh_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFyElCMNFojFX/mLWuIFAzKOzZlhJqgkxefOzQJ6bI/b josh default"
-        sudo: true
-      - name: ansible
-        ssh_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICPM8xsQ9Y+s7d5cBCBDo8lleyOui7gttZqkoEP+6MNN ansible"
-        sudo: true
-        nopasswd: true
+  # vars:
+  #   users:
+  #     - name: josh
+  #       ssh_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFyElCMNFojFX/mLWuIFAzKOzZlhJqgkxefOzQJ6bI/b josh default"
+  #       sudo: true
+  #     - name: ansible
+  #       ssh_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICPM8xsQ9Y+s7d5cBCBDo8lleyOui7gttZqkoEP+6MNN ansible"
+  #       sudo: true
+  #       nopasswd: true
 
   pre_tasks:
-    - name: Update package cache (Ubuntu/Debian)
-      apt:
-        update_cache: true
+  - name: Update and upgrade apt packages
+    ansible.builtin.apt:
+      update_cache: yes
+      upgrade: dist
+      autoremove: yes
+      autoclean: yes
+    become: true
+    tags: apt
 
-    - name: Upgrade all packages (Ubuntu/Debian)
-      apt:
-        upgrade: dist
-        autoremove: true
-        autoclean: true
+  - name: Ensure snapd is installed
+    ansible.builtin.apt:
+      name: snapd
+      state: present
+    become: true
+    tags: snap
+
+  - name: Upgrade all snap packages
+    community.general.snap:
+      name: all
+      state: latest
+    become: true
+    when: "'snap' in ansible_facts.packages or ansible_facts['pkg_mgr'] == 'snap'"
+    tags: snap
+
+  # Alternative, more robust check for snap command
+  # - name: Upgrade all snap packages (if snap is available)
+  #   community.general.snap:
+  #     name: all
+  #     state: latest
+  #   become: true
+  #   when: ansible_facts['cmdline']['snap'] is defined
+  #   tags: snap
+
 
   roles:
     - base
-
-- name: Workstation setup
-  hosts: workstations
-  become: true
-  roles:
     - workstations
-
-- name: Proxmox server setup
-  hosts: proxmox_servers
-  become: true
-  roles:
     - proxmox_servers
-
-- name: Media server setup
-  hosts: media_servers
-  become: true
-  roles:
     - media_server

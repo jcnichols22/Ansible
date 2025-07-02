@@ -2,19 +2,22 @@
   ansible.builtin.apt:
     update_cache: yes
     cache_valid_time: 3600
+  tags: packages
 
 - name: Install required packages
   ansible.builtin.apt:
-    name:
-      - sudo
-      - git
-    state: latest
+    name: "{{ required_packages }}"
+    state: present
+  tags: packages
 
 - name: Ensure users exist
   ansible.builtin.user:
     name: "{{ item.name }}"
     shell: /bin/bash
+    state: present
+    create_home: yes
   loop: "{{ users }}"
+  tags: users
 
 - name: Add SSH keys for users
   ansible.builtin.authorized_key:
@@ -22,6 +25,7 @@
     state: present
     key: "{{ item.ssh_key }}"
   loop: "{{ users }}"
+  tags: users
 
 - name: Add users to sudo group
   ansible.builtin.user:
@@ -30,26 +34,38 @@
     append: yes
   loop: "{{ users }}"
   when: item.sudo | default(false)
+  tags: sudo
 
 - name: Create sudoers file for users with NOPASSWD
-  ansible.builtin.lineinfile:
-    path: "/etc/sudoers.d/{{ item.name }}"
-    create: yes
-    mode: "0440"
-    line: "{{ item.name }} ALL=(ALL) NOPASSWD: ALL"
-    validate: "visudo -cf %s"
+  ansible.builtin.copy:
+    dest: "/etc/sudoers.d/{{ item.name }}"
+    content: "{{ item.name }} ALL=(ALL) NOPASSWD: ALL\n"
+    owner: root
+    group: root
+    mode: '0440'
+    validate: 'visudo -cf %s'
   loop: "{{ users }}"
   when: item.nopasswd | default(false)
+  tags: sudo
 
-- name: Clone or update bash aliases repository
+- name: Ensure dotfiles repository is present for each user
   ansible.builtin.git:
-    repo: https://github.com/jcnichols22/dotfiles.git
-    dest: /home/josh/dotfiles
+    repo: "{{ dotfiles_repo }}"
+    dest: "/home/{{ item.name }}/dotfiles"
     update: yes
+    version: HEAD
+  loop: "{{ users }}"
+  become: true
+  become_user: "{{ item.name }}"
+  tags: dotfiles
 
-- name: Link bash aliases file to home if not already linked
+- name: Link bash aliases file to home directory
   ansible.builtin.file:
-    src: /home/josh/dotfiles/.bash_aliases
-    dest: /home/josh/.bash_aliases
+    src: "/home/{{ item.name }}/dotfiles/.bash_aliases"
+    dest: "/home/{{ item.name }}/.bash_aliases"
     state: link
     force: yes
+  loop: "{{ users }}"
+  become: true
+  become_user: "{{ item.name }}"
+  tags: dotfiles

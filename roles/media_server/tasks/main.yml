@@ -1,32 +1,20 @@
-#install docker ubuntu
-- name: Install Docker
+# This role sets up a media server environment on Ubuntu, installing necessary packages and cloning a repository for the docker compose files.
+
+- name: Install required packages
   apt:
-    name: docker.io
+    name: "{{ media_server_packages }}"
     state: present
   when: ansible_distribution == "Ubuntu"
+  tags: packages
 
-#install docker compose ubuntu
-- name: Install Docker Compose
-  apt:
-    name: docker-compose
-    state: present
-  when: ansible_distribution == "Ubuntu"
-
-#install proton vpn ubuntu
-- name: Install ProtonVPN
-  apt:
-    name: protonvpn
-    state: present
-  when: ansible_distribution == "Ubuntu"
-
-#clone arr github repo to home directory
-- name: Clone Arr repository
+- name: Clone media server repository
   git:
-    repo: "https://github.com/jcnichols22/Homelab.git"
-    dest: "/home/josh/Homelab"
+    repo: "{{ media_repo }}"
+    dest: "{{ media_repo_dest }}"
     version: main
     update: yes
     force: yes
   become: yes
-  become_user: josh
+  become_user: "{{ media_user }}"
   when: ansible_distribution == "Ubuntu"
+  tags: repo

@@ -1,0 +1,10 @@
+snap_apps:
+  - code
+  - obsidian
+  - discord
+
+apt_apps:
+  - 1password
+  - brave-browser
+  - nextcloud-desktop
+  - tmux
