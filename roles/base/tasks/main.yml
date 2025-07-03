@@ -83,7 +83,6 @@
     accept_hostkey: yes
   loop: "{{ users }}"
   become: true
-  become_user: "{{ item.name }}" # <--- Add this line
   tags: dotfiles
 
 - name: Fix ownership after git clone
