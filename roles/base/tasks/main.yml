@@ -52,23 +52,23 @@
   tags: sudo
 
 # --- Dotfiles Management ---
-- name: Clone dotfiles repository
-  ansible.builtin.git:
-    repo: "{{ dotfiles_repo }}"
-    dest: "/home/{{ item.name }}/dotfiles"
-    version: master
-    force: yes
-  loop: "{{ users }}"
-  loop_control:
-    label: "{{ item.name }}"
-  tags: dotfiles
+- name: Clone dotfiles repo and link .bash_aliases for each user
+  block:
+    - name: Clone dotfiles repository
+      ansible.builtin.git:
+        repo: "{{ dotfiles_repo }}"
+        dest: "/home/{{ item.name }}/dotfiles"
+        version: master
+        update: yes
+      become: yes
+      become_user: "{{ item.name }}"
 
-- name: Link dotfiles to home directory
-  ansible.builtin.file:
-    src: "/home/{{ item.name }}/dotfiles/{{ item.name }}"
-    dest: "/home/{{ item.name }}/.{{ item.name }}"
-    state: link
+    - name: Link .bash_aliases from dotfiles to user home
+      ansible.builtin.file:
+        src: "/home/{{ item.name }}/dotfiles/.bash_aliases"
+        dest: "/home/{{ item.name }}/.bash_aliases"
+        state: link
+        force: yes
+      become: yes
+      become_user: "{{ item.name }}"
   loop: "{{ users }}"
-  loop_control:
-    label: "{{ item.name }}"
-  tags: dotfiles
