@@ -62,17 +62,18 @@
   loop: "{{ users }}"
   become: true
 
-
 - name: Check if GitHub repo exists
-  shell: git ls-remote {{ dotfiles_repo }} HEAD
+  ansible.builtin.shell: git ls-remote {{ dotfiles_repo }} HEAD
   register: repo_check
   ignore_errors: yes
   changed_when: false
+  tags: dotfiles
 
 - name: Fail if repo does not exist on GitHub
-  fail:
+  ansible.builtin.fail:
     msg: "Repository {{ dotfiles_repo }} does not exist or is inaccessible."
   when: repo_check.rc != 0
+  tags: dotfiles
 
 - name: Ensure dotfiles repo is present and updated for each user
   ansible.builtin.git:
@@ -87,6 +88,7 @@
   loop: "{{ users }}"
   loop_control:
     label: "{{ item.name }}"
+  tags: dotfiles
 
 - name: Ensure correct permissions for each user's dotfiles directory
   ansible.builtin.file:
@@ -97,47 +99,7 @@
   loop: "{{ users }}"
   loop_control:
     label: "{{ item.name }}"
-
-
-# - name: Ensure dotfiles directory exists and is owned by user
-#   ansible.builtin.file:
-#     path: "/home/{{ item.name }}/dotfiles"
-#     state: directory
-#     owner: "{{ item.name }}"
-#     group: "{{ item.name }}"
-#     mode: "0755"
-#   loop: "{{ users }}"
-#   become: true
-
-# # --- Dotfiles Git Clone and Ownership ---
-# - name: Ensure dotfiles repository is present for each user
-#   ansible.builtin.git:
-#     repo: "{{ dotfiles_repo }}"
-#     dest: "/home/{{ item.name }}/dotfiles"
-#     update: yes
-#     version: HEAD
-#     force: yes
-#     accept_hostkey: yes
-#   loop: "{{ users }}"
-#   become: true
-#   tags: dotfiles
-
-# - name: Fix ownership after git clone
-#   ansible.builtin.file:
-#     path: "/home/{{ item.name }}/dotfiles"
-#     owner: "{{ item.name }}"
-#     group: "{{ item.name }}"
-#     recurse: true
-#   loop: "{{ users }}"
-#   become: true
-#   tags: dotfiles
-
-# - name: Mark dotfiles repo as safe for git (avoid dubious ownership)
-#   ansible.builtin.command: git config --global --add safe.directory /home/{{ item.name }}/dotfiles
-#   become: true
-#   loop: "{{ users }}"
-#   ignore_errors: true
-#   tags: dotfiles
+  tags: dotfiles
 
 - name: Ensure .bash_aliases symlinked from dotfiles
   ansible.builtin.file:
