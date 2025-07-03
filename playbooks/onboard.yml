@@ -48,12 +48,11 @@
     register: snap_stat
 
   - name: Upgrade all snap packages
-    community.general.snap:
-      name: all
-      state: present
-    become: true
-    when: snap_stat.stat.exists
-    tags: snap
+  ansible.builtin.command: snap refresh
+  become: true
+  when: snap_stat.stat.exists
+  tags: snap
+
 
   # Alternative, more robust check for snap command
   # - name: Upgrade all snap packages (if snap is available)
