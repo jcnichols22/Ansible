@@ -1,7 +1,7 @@
 # --- Package Management ---
 - name: Update apt cache
   ansible.builtin.apt:
-    update_cache: yes
+    update_cache: true
     cache_valid_time: 3600
   tags: packages
 
@@ -18,6 +18,7 @@
     shell: /bin/bash
     state: present
     create_home: yes
+    home: "/home/{{ item.name }}"
   loop: "{{ users }}"
   tags: users
 
@@ -86,7 +87,11 @@
   tags: dotfiles
 
 - name: Fix ownership after git clone
-  ansible.builtin.command: chown -R {{ item.name }}:{{ item.name }} /home/{{ item.name }}/dotfiles
+  ansible.builtin.file:
+    path: "/home/{{ item.name }}/dotfiles"
+    owner: "{{ item.name }}"
+    group: "{{ item.name }}"
+    recurse: true
   loop: "{{ users }}"
   become: true
   tags: dotfiles
@@ -98,7 +103,6 @@
   loop: "{{ users }}"
   ignore_errors: true
   tags: dotfiles
-
 
 - name: Ensure .bash_aliases symlinked from dotfiles
   ansible.builtin.file:
