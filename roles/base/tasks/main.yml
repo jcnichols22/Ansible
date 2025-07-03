@@ -58,15 +58,23 @@
   loop: "{{ users }}"
   become: true
 
-- name: Ensure dotfiles directory is absent if ownership is wrong (optional, destructive)
+- name: Ensure dotfiles directory is owned by user
   ansible.builtin.file:
     path: "/home/{{ item.name }}/dotfiles"
-    state: absent
+    state: directory
+    owner: "{{ item.name }}"
+    group: "{{ item.name }}"
+    mode: '0755'
   loop: "{{ users }}"
   become: true
-  when: ansible_facts['ansible_user_id'] != item.name
 
-- name: Mark dotfiles repo as safe for git
+- name: Fix ownership of dotfiles directory and contents
+  ansible.builtin.command: chown -R {{ item.name }}:{{ item.name }} /home/{{ item.name }}/dotfiles
+  loop: "{{ users }}"
+  become: true
+  ignore_errors: true
+
+- name: Mark dotfiles repo as safe for git (avoid dubious ownership)
   ansible.builtin.command: git config --global --add safe.directory /home/{{ item.name }}/dotfiles
   become: true
   become_user: "{{ item.name }}"
@@ -80,12 +88,13 @@
     update: yes
     version: HEAD
     force: yes
+    accept_hostkey: yes
   loop: "{{ users }}"
   become: true
   become_user: "{{ item.name }}"
   tags: dotfiles
 
-- name: Link bash aliases file to home directory
+- name: Ensure .bash_aliases symlinked from dotfiles
   ansible.builtin.file:
     src: "/home/{{ item.name }}/dotfiles/.bash_aliases"
     dest: "/home/{{ item.name }}/.bash_aliases"
