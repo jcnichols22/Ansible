@@ -63,6 +63,7 @@
         mode: '0755'
       become: yes
       become_user: "{{ item.name }}"
+      loop: "{{ users }}"
 
     - name: Mark dotfiles directory as safe for git
       ansible.builtin.command:
@@ -71,6 +72,7 @@
       become_user: "{{ item.name }}"
       args:
         creates: "/home/{{ item.name }}/.gitconfig"
+      loop: "{{ users }}"
 
     - name: Clone dotfiles repository
       ansible.builtin.git:
@@ -80,6 +82,7 @@
         update: yes
       become: yes
       become_user: "{{ item.name }}"
+      loop: "{{ users }}"
 
     - name: Link .bash_aliases from dotfiles to user home
       ansible.builtin.file:
@@ -89,5 +92,5 @@
         force: yes
       become: yes
       become_user: "{{ item.name }}"
-  loop: "{{ users }}"
+      loop: "{{ users }}"
   tags: dotfiles
