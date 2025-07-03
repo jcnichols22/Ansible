@@ -33,7 +33,7 @@
     groups: sudo
     append: yes
   loop: "{{ users }}"
-  when: item.sudo | default(false)
+  when: "{{ item.sudo | default(false) }}"
   tags: sudo
 
 - name: Create sudoers file for users with NOPASSWD
@@ -45,7 +45,7 @@
     mode: '0440'
     validate: 'visudo -cf %s'
   loop: "{{ users }}"
-  when: item.nopasswd | default(false)
+  when: "{{ item.nopasswd | default(false) }}"
   tags: sudo
 
 - name: Ensure dotfiles repository is present for each user
@@ -56,12 +56,18 @@
     version: HEAD
     force: yes
   loop: "{{ users }}"
-  become: true
-  become_user: "{{ item.name }}"
+  become: false
   tags: dotfiles
-  environment:
-    GIT_SSH_COMMAND: "ssh -o StrictHostKeyChecking=no"
 
+- name: Fix permissions on dotfiles repo
+  ansible.builtin.file:
+    path: "/home/{{ item.name }}/dotfiles"
+    owner: "{{ item.name }}"
+    group: "{{ item.name }}"
+    recurse: yes
+  loop: "{{ users }}"
+  become: true
+  tags: dotfiles
 
 - name: Link bash aliases file to home directory
   ansible.builtin.file:
