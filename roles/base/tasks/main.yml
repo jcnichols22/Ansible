@@ -1,3 +1,4 @@
+# --- Package Management ---
 - name: Update apt cache
   ansible.builtin.apt:
     update_cache: yes
@@ -10,6 +11,7 @@
     state: present
   tags: packages
 
+# --- User Management ---
 - name: Ensure users exist
   ansible.builtin.user:
     name: "{{ item.name }}"
@@ -48,6 +50,7 @@
   when: item.nopasswd | default(false)
   tags: sudo
 
+# --- Dotfiles Management ---
 - name: Ensure home directory exists and is owned by user
   ansible.builtin.file:
     path: "/home/{{ item.name }}"
@@ -58,7 +61,7 @@
   loop: "{{ users }}"
   become: true
 
-- name: Ensure dotfiles directory is owned by user
+- name: Ensure dotfiles directory exists and is owned by user
   ansible.builtin.file:
     path: "/home/{{ item.name }}/dotfiles"
     state: directory
@@ -68,19 +71,7 @@
   loop: "{{ users }}"
   become: true
 
-- name: Fix ownership of dotfiles directory and contents
-  ansible.builtin.command: chown -R {{ item.name }}:{{ item.name }} /home/{{ item.name }}/dotfiles
-  loop: "{{ users }}"
-  become: true
-  ignore_errors: true
-
-- name: Mark dotfiles repo as safe for git (avoid dubious ownership)
-  ansible.builtin.command: git config --global --add safe.directory /home/{{ item.name }}/dotfiles
-  become: true
-  become_user: "{{ item.name }}"
-  loop: "{{ users }}"
-  ignore_errors: true
-
+# --- Dotfiles Git Clone and Ownership ---
 - name: Ensure dotfiles repository is present for each user
   ansible.builtin.git:
     repo: "{{ dotfiles_repo }}"
@@ -91,7 +82,19 @@
     accept_hostkey: yes
   loop: "{{ users }}"
   become: true
-  become_user: "{{ item.name }}"
+  tags: dotfiles
+
+- name: Fix ownership after git clone
+  ansible.builtin.command: chown -R {{ item.name }}:{{ item.name }} /home/{{ item.name }}/dotfiles
+  loop: "{{ users }}"
+  become: true
+  tags: dotfiles
+
+- name: Mark dotfiles repo as safe for git (avoid dubious ownership)
+  ansible.builtin.command: git config --global --add safe.directory /home/{{ item.name }}/dotfiles
+  become: true
+  loop: "{{ users }}"
+  ignore_errors: true
   tags: dotfiles
 
 - name: Ensure .bash_aliases symlinked from dotfiles
@@ -102,5 +105,4 @@
     force: yes
   loop: "{{ users }}"
   become: true
-  become_user: "{{ item.name }}"
   tags: dotfiles
