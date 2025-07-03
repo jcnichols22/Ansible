@@ -62,14 +62,14 @@
         group: "{{ item.name }}"
         mode: '0755'
       become: yes
-      become_user: "{{ item.name }}"
+      #become_user: "{{ item.name }}"
       loop: "{{ users }}"
 
     - name: Mark dotfiles directory as safe for git
       ansible.builtin.command:
         cmd: git config --global --add safe.directory /home/{{ item.name }}/dotfiles
       become: yes
-      become_user: "{{ item.name }}"
+      #become_user: "{{ item.name }}"
       args:
         creates: "/home/{{ item.name }}/.gitconfig"
       loop: "{{ users }}"
@@ -81,7 +81,7 @@
         version: main   # <-- Change 'main' to your actual branch if needed
         update: yes
       become: yes
-      become_user: "{{ item.name }}"
+      #become_user: "{{ item.name }}"
       loop: "{{ users }}"
 
     - name: Link .bash_aliases from dotfiles to user home
@@ -91,6 +91,6 @@
         state: link
         force: yes
       become: yes
-      become_user: "{{ item.name }}"
+      #become_user: "{{ item.name }}"
       loop: "{{ users }}"
   tags: dotfiles
