@@ -44,8 +44,8 @@
     content: "{{ item.name }} ALL=(ALL) NOPASSWD: ALL\n"
     owner: root
     group: root
-    mode: '0440'
-    validate: 'visudo -cf %s'
+    mode: "0440"
+    validate: "visudo -cf %s"
   loop: "{{ users }}"
   when: item.nopasswd | default(false)
   tags: sudo
@@ -57,7 +57,7 @@
     state: directory
     owner: "{{ item.name }}"
     group: "{{ item.name }}"
-    mode: '0755'
+    mode: "0755"
   loop: "{{ users }}"
   become: true
 
@@ -67,7 +67,7 @@
     state: directory
     owner: "{{ item.name }}"
     group: "{{ item.name }}"
-    mode: '0755'
+    mode: "0755"
   loop: "{{ users }}"
   become: true
 
@@ -82,6 +82,7 @@
     accept_hostkey: yes
   loop: "{{ users }}"
   become: true
+  become_user: "{{ item.name }}" # <--- Add this line
   tags: dotfiles
 
 - name: Fix ownership after git clone
