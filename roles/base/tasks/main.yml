@@ -62,18 +62,18 @@
   loop: "{{ users }}"
   become: true
 
-- name: Check if GitHub repo exists
-  ansible.builtin.shell: git ls-remote {{ dotfiles_repo }} HEAD
-  register: repo_check
-  ignore_errors: yes
-  changed_when: false
-  tags: dotfiles
+# - name: Check if GitHub repo exists
+#   ansible.builtin.shell: git ls-remote {{ dotfiles_repo }} HEAD
+#   register: repo_check
+#   ignore_errors: yes
+#   changed_when: false
+#   tags: dotfiles
 
-- name: Fail if repo does not exist on GitHub
-  ansible.builtin.fail:
-    msg: "Repository {{ dotfiles_repo }} does not exist or is inaccessible."
-  when: repo_check.rc != 0
-  tags: dotfiles
+# - name: Fail if repo does not exist on GitHub
+#   ansible.builtin.fail:
+#     msg: "Repository {{ dotfiles_repo }} does not exist or is inaccessible."
+#   when: repo_check.rc != 0
+#   tags: dotfiles
 
 - name: Ensure dotfiles repo is present and updated for each user
   ansible.builtin.git:
