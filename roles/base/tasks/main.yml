@@ -54,10 +54,14 @@
     dest: "/home/{{ item.name }}/dotfiles"
     update: yes
     version: HEAD
+    force: yes
   loop: "{{ users }}"
   become: true
   become_user: "{{ item.name }}"
   tags: dotfiles
+  environment:
+    GIT_SSH_COMMAND: "ssh -o StrictHostKeyChecking=no"
+
 
 - name: Link bash aliases file to home directory
   ansible.builtin.file:
