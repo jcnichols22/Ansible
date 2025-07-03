@@ -65,7 +65,8 @@
       become_user: "{{ item.name }}"
 
     - name: Mark dotfiles directory as safe for git
-      ansible.builtin.command: git config --global --add safe.directory /home/{{ item.name }}/dotfiles
+      ansible.builtin.command:
+        cmd: git config --global --add safe.directory /home/{{ item.name }}/dotfiles
       become: yes
       become_user: "{{ item.name }}"
       args:
