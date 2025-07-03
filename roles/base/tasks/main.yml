@@ -52,24 +52,41 @@
   tags: sudo
 
 # --- Dotfiles Management ---
-- name: Clone dotfiles repository
-  ansible.builtin.git:
-    repo: "{{ dotfiles_repo }}"
-    dest: "/home/{{ item.name }}/dotfiles"
-    version: main
-    update: yes
-  become: yes
-  become_user: "{{ item.name }}"
-  loop: "{{ users }}"
-  tags: dotfiles
+- name: Clone dotfiles repo and link .bash_aliases for each user
+  block:
+    - name: Ensure dotfiles directory exists
+      ansible.builtin.file:
+        path: "/home/{{ item.name }}/dotfiles"
+        state: directory
+        owner: "{{ item.name }}"
+        group: "{{ item.name }}"
+        mode: '0755'
+      become: yes
+      become_user: "{{ item.name }}"
 
-- name: Link .bash_aliases from dotfiles to user home
-  ansible.builtin.file:
-    src: "/home/{{ item.name }}/dotfiles/.bash_aliases"
-    dest: "/home/{{ item.name }}/.bash_aliases"
-    state: link
-    force: yes
-  become: yes
-  become_user: "{{ item.name }}"
+    - name: Mark dotfiles directory as safe for git
+      ansible.builtin.command: git config --global --add safe.directory /home/{{ item.name }}/dotfiles
+      become: yes
+      become_user: "{{ item.name }}"
+      args:
+        creates: "/home/{{ item.name }}/.gitconfig"
+
+    - name: Clone dotfiles repository
+      ansible.builtin.git:
+        repo: "{{ dotfiles_repo }}"
+        dest: "/home/{{ item.name }}/dotfiles"
+        version: main   # <-- Change 'main' to your actual branch if needed
+        update: yes
+      become: yes
+      become_user: "{{ item.name }}"
+
+    - name: Link .bash_aliases from dotfiles to user home
+      ansible.builtin.file:
+        src: "/home/{{ item.name }}/dotfiles/.bash_aliases"
+        dest: "/home/{{ item.name }}/.bash_aliases"
+        state: link
+        force: yes
+      become: yes
+      become_user: "{{ item.name }}"
   loop: "{{ users }}"
   tags: dotfiles
