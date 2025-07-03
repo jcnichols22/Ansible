@@ -33,7 +33,7 @@
     groups: sudo
     append: yes
   loop: "{{ users }}"
-  when: "{{ item.sudo | default(false) }}"
+  when: item.sudo | default(false)
   tags: sudo
 
 - name: Create sudoers file for users with NOPASSWD
@@ -45,8 +45,33 @@
     mode: '0440'
     validate: 'visudo -cf %s'
   loop: "{{ users }}"
-  when: "{{ item.nopasswd | default(false) }}"
+  when: item.nopasswd | default(false)
   tags: sudo
+
+- name: Ensure home directory exists and is owned by user
+  ansible.builtin.file:
+    path: "/home/{{ item.name }}"
+    state: directory
+    owner: "{{ item.name }}"
+    group: "{{ item.name }}"
+    mode: '0755'
+  loop: "{{ users }}"
+  become: true
+
+- name: Ensure dotfiles directory is absent if ownership is wrong (optional, destructive)
+  ansible.builtin.file:
+    path: "/home/{{ item.name }}/dotfiles"
+    state: absent
+  loop: "{{ users }}"
+  become: true
+  when: ansible_facts['ansible_user_id'] != item.name
+
+- name: Mark dotfiles repo as safe for git
+  ansible.builtin.command: git config --global --add safe.directory /home/{{ item.name }}/dotfiles
+  become: true
+  become_user: "{{ item.name }}"
+  loop: "{{ users }}"
+  ignore_errors: true
 
 - name: Ensure dotfiles repository is present for each user
   ansible.builtin.git:
@@ -56,17 +81,8 @@
     version: HEAD
     force: yes
   loop: "{{ users }}"
-  become: false
-  tags: dotfiles
-
-- name: Fix permissions on dotfiles repo
-  ansible.builtin.file:
-    path: "/home/{{ item.name }}/dotfiles"
-    owner: "{{ item.name }}"
-    group: "{{ item.name }}"
-    recurse: yes
-  loop: "{{ users }}"
   become: true
+  become_user: "{{ item.name }}"
   tags: dotfiles
 
 - name: Link bash aliases file to home directory
