@@ -65,24 +65,24 @@
       become_user: "{{ item.name }}"
       loop: "{{ users }}"
 
-    - name: Mark dotfiles directory as safe for git for each user
-      ansible.builtin.command:
-        cmd: git config --file /home/{{ item.name }}/.gitconfig --add safe.directory /home/{{ item.name }}/dotfiles
-      become: yes
-      become_user: "{{ item.name }}"
-      args:
-        creates: "/home/{{ item.name }}/dotfiles/.git"
-      loop: "{{ users }}"
 
     - name: Clone dotfiles repository
       ansible.builtin.git:
         repo: "{{ dotfiles_repo }}"
         dest: "/home/{{ item.name }}/dotfiles"
-        version: main   # <-- Change 'main' to your actual branch if needed
+        version: main
         update: yes
       become: yes
-      #become_user: "{{ item.name }}"
+      become_user: "{{ item.name }}"
       loop: "{{ users }}"
+
+    - name: Mark dotfiles directory as safe for git for each user
+      ansible.builtin.command:
+        cmd: git config --global --add safe.directory /home/{{ item.name }}/dotfiles
+      become: yes
+      become_user: "{{ item.name }}"
+      loop: "{{ users }}"
+
 
     - name: Link .bash_aliases from dotfiles to user home
       ansible.builtin.file:
