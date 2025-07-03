@@ -12,6 +12,7 @@
 # - Sets up a media server environment with Docker and Docker Compose
 # - Clones a media server repository for Docker Compose files
 # - Ensures the playbook is idempotent and can be run multiple times without issues
+
 - name: Onboarding
   hosts: all
   become: true
@@ -26,44 +27,42 @@
   #       nopasswd: true
 
   pre_tasks:
-  - name: Update and upgrade apt packages
-    ansible.builtin.apt:
-      update_cache: yes
-      upgrade: dist
-      autoremove: yes
-      autoclean: yes
-    become: true
-    tags: apt
+    - name: Update and upgrade apt packages
+      ansible.builtin.apt:
+        update_cache: yes
+        upgrade: dist
+        autoremove: yes
+        autoclean: yes
+      become: true
+      tags: apt
 
-  - name: Ensure snapd is installed
-    ansible.builtin.apt:
-      name: snapd
-      state: present
-    become: true
-    tags: snap
+    - name: Ensure snapd is installed
+      ansible.builtin.apt:
+        name: snapd
+        state: present
+      become: true
+      tags: snap
 
-  - name: Check if snap command is available
-  ansible.builtin.stat:
-    path: /usr/bin/snap
-  register: snap_stat
+    - name: Check if snap command is available
+      ansible.builtin.stat:
+        path: /usr/bin/snap
+      register: snap_stat
 
-- name: Upgrade all snap packages
-  ansible.builtin.command: snap refresh
-  become: true
-  when: snap_stat.stat.exists
-  tags: snap
+  tasks:
+    - name: Upgrade all snap packages
+      ansible.builtin.command: snap refresh
+      become: true
+      when: snap_stat.stat.exists
+      tags: snap
 
-
-
-  # Alternative, more robust check for snap command
-  # - name: Upgrade all snap packages (if snap is available)
-  #   community.general.snap:
-  #     name: all
-  #     state: latest
-  #   become: true
-  #   when: ansible_facts['cmdline']['snap'] is defined
-  #   tags: snap
-
+    # Alternative, more robust check for snap command
+    # - name: Upgrade all snap packages (if snap is available)
+    #   community.general.snap:
+    #     name: all
+    #     state: latest
+    #   become: true
+    #   when: ansible_facts['cmdline']['snap'] is defined
+    #   tags: snap
 
   roles:
     - base
