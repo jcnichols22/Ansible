@@ -12,5 +12,5 @@ users:
 required_packages:
   - sudo
   - git
-dotfiles_repo: "/home/josh/dotfiles/.bash_aliases"
+dotfiles_repo: "https://github.com/jcnichols22/dotfiles.git"
 
