@@ -43,15 +43,16 @@
     tags: snap
 
   - name: Check if snap command is available
-    ansible.builtin.stat:
-      path: /usr/bin/snap
-    register: snap_stat
+  ansible.builtin.stat:
+    path: /usr/bin/snap
+  register: snap_stat
 
-  - name: Upgrade all snap packages
+- name: Upgrade all snap packages
   ansible.builtin.command: snap refresh
   become: true
   when: snap_stat.stat.exists
   tags: snap
+
 
 
   # Alternative, more robust check for snap command
