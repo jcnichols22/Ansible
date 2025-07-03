@@ -12,5 +12,6 @@ users:
 required_packages:
   - sudo
   - git
-dotfiles_repo: "https://github.com/jcnichols22/dotfiles.git"
+#dotfiles_repo: "https://github.com/jcnichols22/dotfiles.git"
+dotfiles_repo: "git@github.com:jcnichols22/Ansible.git"
 
