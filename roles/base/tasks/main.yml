@@ -62,16 +62,16 @@
         group: "{{ item.name }}"
         mode: '0755'
       become: yes
-      #become_user: "{{ item.name }}"
+      become_user: "{{ item.name }}"
       loop: "{{ users }}"
 
-    - name: Mark dotfiles directory as safe for git
+    - name: Mark dotfiles directory as safe for git for each user
       ansible.builtin.command:
-        cmd: git config --global --add safe.directory /home/{{ item.name }}/dotfiles
+        cmd: git config --file /home/{{ item.name }}/.gitconfig --add safe.directory /home/{{ item.name }}/dotfiles
       become: yes
-      #become_user: "{{ item.name }}"
+      become_user: "{{ item.name }}"
       args:
-        creates: "/home/{{ item.name }}/.gitconfig"
+        creates: "/home/{{ item.name }}/dotfiles/.git"
       loop: "{{ users }}"
 
     - name: Clone dotfiles repository
