@@ -42,12 +42,17 @@
     become: true
     tags: snap
 
+  - name: Check if snap command is available
+    ansible.builtin.stat:
+      path: /usr/bin/snap
+    register: snap_stat
+
   - name: Upgrade all snap packages
     community.general.snap:
       name: all
       state: latest
     become: true
-    when: "'snap' in ansible_facts.packages or ansible_facts['pkg_mgr'] == 'snap'"
+    when: snap_stat.stat.exists
     tags: snap
 
   # Alternative, more robust check for snap command
