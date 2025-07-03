@@ -56,11 +56,12 @@
   ansible.builtin.git:
     repo: "{{ dotfiles_repo }}"
     dest: "/home/{{ item.name }}/dotfiles"
-    version: master
+    version: main
     update: yes
   become: yes
   become_user: "{{ item.name }}"
   loop: "{{ users }}"
+  tags: dotfiles
 
 - name: Link .bash_aliases from dotfiles to user home
   ansible.builtin.file:
@@ -71,3 +72,4 @@
   become: yes
   become_user: "{{ item.name }}"
   loop: "{{ users }}"
+  tags: dotfiles
