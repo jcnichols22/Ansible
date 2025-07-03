@@ -98,7 +98,6 @@
 - name: Mark dotfiles repo as safe for git (avoid dubious ownership)
   ansible.builtin.command: git config --global --add safe.directory /home/{{ item.name }}/dotfiles
   become: true
-  become_user: "{{ item.name }}"
   loop: "{{ users }}"
   ignore_errors: true
   tags: dotfiles
