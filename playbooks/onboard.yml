@@ -70,3 +70,4 @@
     - workstations
     - proxmox_servers
     - media_server
+    - dotfiles

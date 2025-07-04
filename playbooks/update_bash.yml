@@ -4,20 +4,5 @@
   hosts: all
   become: yes
   tasks:
-    - name: Ensure Git is installed
-      apt:
-        name: git
-        state: present
-
-    - name: Clone or update bash aliases repository
-      ansible.builtin.git:
-        repo: https://github.com/jcnichols22/dotfiles.git
-        dest: /home/josh/dotfiles
-        update: yes
-
-    - name: Link bash alises file to home if not already linked
-      ansible.builtin.file:
-        src: /home/josh/dotfiles/.bash_aliases
-        dest: /home/josh/.bash_aliases
-        state: link
-        force: yes
+    - dotfiles
+    
