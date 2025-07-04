@@ -3,6 +3,5 @@
 - name: Update bash aliases from repository
   hosts: all
   become: yes
-  tasks:
+  roles:
     - dotfiles
-    
