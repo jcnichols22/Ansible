@@ -1,50 +1,75 @@
 # Ansible Infrastructure Automation
 
-This repository automates the configuration and management of server infrastructure using Ansible. It currently focuses on a Proxmox VE cluster and a media server running Docker containers for media management.
+This repository automates the configuration and management of server infrastructure using Ansible. It currently focuses on a Proxmox VE cluster, a media server running Docker containers for media management, and setting up workstations.
 
 ---
-
-## Overview
-
-### Proxmox VE Cluster
-- **Nodes:** pve, pve1 (in cluster)
-- **Cluster Management:** LXC container provisioning, resource allocation, and HA configuration
-
-### Media Server
-- **OS:** Ubuntu Server LTS
-- **Services:**
-  - **Dockerized Applications:**
-    - Arr Stack (Radarr, Sonarr, Prowlarr)
-    - Jellyfin Media Server
-    - Plex Media Server
-  - **Storage Management:** Media libraries
-  - **Automation:** Media processing pipelines
 
 
 ## Repository Structure
 
 ```text
-├── ansible.cfg               # Ansible configuration
-├── inventory/                # Host inventory
-│   └── hosts.ini             # Production hosts
+ANSIBLE/
+├── Files/
+│   ├── sudor_ansible 
+│   └── users.yml
+├── inventory/
+│   └── hosts.ini
+├── playbooks/
+│   ├── onboard_all.yml
+│   ├── onboard_media.yml
+│   ├── onboard_workstations.yml
+│   ├── onboard.yml
+│   ├── update_bash.yml
+│   └── update_servers.yml
 ├── roles/
-│   ├── base/                 # Common tasks for all servers
-│   ├── proxmox/              # Proxmox cluster management
-│   └── media_server/         # Media stack deployment
-│   ├── workstations/         # Workstation configuration
-├── playbooks/                # Ansible playbooks
-├── files/                    # Files to be used by playbooks
+│   ├── base/
+│   │   ├── defaults/
+│   │   ├── meta/
+│   │   └── tasks/
+│   ├── dotfiles/
+│   │   ├── defaults/
+│   │   └── tasks/
+│   ├── media_server/
+│   │   ├── defaults/
+│   │   ├── meta/
+│   │   └── tasks/
+│   ├── proxmox_servers/
+│   │   ├── defaults/
+│   │   ├── meta/
+│   │   └── tasks/
+│   └── workstations/
+│       ├── defaults/
+│       ├── meta/
+│       └── tasks/
+├── ansible.cfg
+└── README.md
+
 ```
 
 
 ## Running Playbooks
 
-### Run Proxmox setup playbook
-- **ansible-playbook playbooks/proxmox-setup.yml -l proxmox_cluster**
+To run the Ansible playbooks, ensure you have Ansible installed and configured on your control machine. You can execute the playbooks using the following command:
 
-### Deploy media stack
-- **ansible-playbook playbooks/media-stack.yml -l media_servers**
+```bash
+ansible-playbook playbooks/onboard.yml -K
+```
+This command will prompt for the sudo password (`-K`) and execute the `onboard.yml` playbook, which includes tasks for setting up the Proxmox cluster, media server, and workstations.
 
+## Playbooks Overview 
+- **onboard.yml**: Main playbook that orchestrates the onboarding of all components.
+- **onboard_all.yml**: Playbook to onboard all components including Proxmox, media server, and workstations.
+- **onboard_media.yml**: Playbook specifically for setting up the media server.
+- **onboard_workstations.yml**: Playbook for configuring workstations.
+- **update_bash.yml**: Playbook to update bash configurations and install necessary packages.
+- **update_servers.yml**: Playbook to update server configurations and packages.
+
+## Roles Overview
+- **base**: Contains common tasks and configurations shared across all servers.
+- **dotfiles**: Manages user-specific dotfiles and configurations.
+- **media_server**: Configures the media server with Docker containers for media management.
+- **proxmox_servers**: Sets up the Proxmox VE cluster and manages virtual machines and containers.
+- **workstations**: Configures workstations with necessary software and settings.
 
 
 ## Future Automation Roadmap
