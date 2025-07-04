@@ -3,15 +3,15 @@
     repo: "{{ dotfiles_repo }}"
     dest: "/home/{{ item.name }}/dotfiles"
     update: yes
-  version: main
+    version: main
   become: yes
   become_user: "{{ item.name }}"
   loop: "{{ users }}"
 
 - name: Link bash aliases file to home if not already linked
   ansible.builtin.file:
-    src: /home/{{ item.name }}/dotfiles/.bash_aliases
-    dest: /home/{{ item.name }}/.bash_aliases
+    src: "/home/{{ item.name }}/dotfiles/.bash_aliases"
+    dest: "/home/{{ item.name }}/.bash_aliases"
     state: link
     force: yes
   become: yes
