@@ -50,8 +50,5 @@
   loop: "{{ users }}"
   when: item.nopasswd | default(false)
   tags: sudo
-
-
 # --- Dotfiles ---
-
 
