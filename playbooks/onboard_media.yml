@@ -14,7 +14,7 @@
 # - Ensures the playbook is idempotent and can be run multiple times without issues
 
 - name: Onboarding
-  hosts: all
+  hosts: media_servers
   become: true
 
   pre_tasks:
