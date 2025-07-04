@@ -1,13 +1,5 @@
 users:
   - name: josh
-    ssh_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFyElCMNFojFX/mLWuIFAzKOzZlhJqgkxefOzQJ6bI/b josh default"
-    sudo: true
-  - name: ansible
-    ssh_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICPM8xsQ9Y+s7d5cBCBDo8lleyOui7gttZqkoEP+6MNN ansible"
-    sudo: true
-    nopasswd: true
+    
 
-required_packages:
-  - sudo
-  - git
 dotfiles_repo: "https://github.com/jcnichols22/dotfiles.git"
