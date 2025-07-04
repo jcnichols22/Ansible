@@ -2,16 +2,9 @@
 # what this playbook does:
 # - Updates and upgrades apt packages
 # - Ensures snapd is installed
+# - Checks if the snap command is available
 # - Upgrades all snap packages
-# - Applies roles for base setup, workstations, Proxmox servers, and media server
-# - Creates users with SSH keys and sudo privileges
-# - Installs required packages for each role
-# - Configures sudoers for users with NOPASSWD where specified
-# - Clones dotfiles repository for each user
-# - Installs desktop applications via snap and apt
-# - Sets up a media server environment with Docker and Docker Compose
-# - Clones a media server repository for Docker Compose files
-# - Ensures the playbook is idempotent and can be run multiple times without issues
+# - Applies roles: base, dotfiles, media_server
 
 - name: Onboarding
   hosts: media_servers
@@ -45,15 +38,6 @@
       become: true
       when: snap_stat.stat.exists
       tags: snap
-
-    # Alternative, more robust check for snap command
-    # - name: Upgrade all snap packages (if snap is available)
-    #   community.general.snap:
-    #     name: all
-    #     state: latest
-    #   become: true
-    #   when: ansible_facts['cmdline']['snap'] is defined
-    #   tags: snap
 
   roles:
     - base
