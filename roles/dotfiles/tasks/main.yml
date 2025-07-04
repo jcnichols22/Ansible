@@ -5,13 +5,13 @@
 
 - name: Clone or update bash aliases repository
   ansible.builtin.git:
-    repo: "{{ dotfiles_repo }}"
-    dest: /home/{{ item.name }}/dotfiles
+    repo: https://github.com/jcnichols22/dotfiles.git
+    dest: /home/josh/dotfiles
     update: yes
 
 - name: Link bash aliases file to home if not already linked
   ansible.builtin.file:
-    src: /home/{{ item.name }}/dotfiles/.bash_aliases
-    dest: /home/{{ item.name }}/.bash_aliases
+    src: /home/josh/dotfiles/.bash_aliases
+    dest: /home/josh/.bash_aliases
     state: link
     force: yes
