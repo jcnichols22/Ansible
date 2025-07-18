@@ -1,0 +1,19 @@
+- name: Ensure snapd is installed
+  apt:
+    name: snapd
+    state: present
+  become: true
+
+- name: Install snap packages
+  community.general.snap:
+    name: "{{ snap_apps }}"
+    state: present
+  become: true
+
+  
+- name: Install apt packages
+  apt:
+    name: "{{ apt_apps }}"
+    state: present
+    update_cache: yes
+  become: true

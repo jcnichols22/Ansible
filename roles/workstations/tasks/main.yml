@@ -1,19 +1,62 @@
-- name: Ensure snapd is installed
+- name: Ensure snapd is installed (Debian/Ubuntu)
   apt:
     name: snapd
     state: present
+    update_cache: yes
   become: true
+  when: ansible_os_family == "Debian"
+
+- name: Ensure snapd is installed (Arch)
+  pacman:
+    name: snapd
+    state: present
+    update_cache: yes
+  become: true
+  when: ansible_os_family == "Archlinux"
+
+- name: Ensure snapd.socket is enabled and started (Arch)
+  ansible.builtin.systemd:
+    name: snapd.socket
+    enabled: yes
+    state: started
+  become: true
+  when: ansible_os_family == "Archlinux"
+
+- name: Ensure /snap symlink exists (Arch)
+  file:
+    src: /var/lib/snapd/snap
+    dest: /snap
+    state: link
+  become: true
+  when: ansible_os_family == "Archlinux"
 
 - name: Install snap packages
   community.general.snap:
     name: "{{ snap_apps }}"
     state: present
   become: true
+  when: snap_apps is defined and snap_apps | length > 0
 
-  
 - name: Install apt packages
   apt:
     name: "{{ apt_apps }}"
     state: present
     update_cache: yes
   become: true
+  when: ansible_os_family == "Debian" and apt_apps is defined and apt_apps | length > 0
+
+- name: Install pacman packages
+  community.general.pacman:
+    name: "{{ pacman_apps }}"
+    state: present
+    update_cache: yes
+  become: true
+  when: ansible_os_family == "Archlinux" and pacman_apps is defined and pacman_apps | length > 0
+
+# Optionally: Install AUR packages using yay (if you have aur_apps defined)
+- name: Install AUR packages with yay (Arch)
+  community.general.yay:
+    name: "{{ aur_apps }}"
+    state: present
+  become: true
+  when: ansible_os_family == "Archlinux" and aur_apps is defined and aur_apps | length > 0

@@ -1,18 +1,7 @@
-- name: Ensure Git is installed (Debian/Ubuntu)
+- name: Ensure Git is installed
   apt:
     name: git
     state: present
-    update_cache: yes
-  become: true
-  when: ansible_os_family == "Debian"
-
-- name: Ensure Git is installed (Arch/Archcraft)
-  community.general.pacman:
-    name: git
-    state: present
-    update_cache: yes
-  become: true
-  when: ansible_os_family == "Archlinux"
 
 - name: Clone or update bash aliases repository
   ansible.builtin.git:
@@ -26,4 +15,3 @@
     dest: /home/josh/.bash_aliases
     state: link
     force: yes
-    # Optionally become: true if /home/josh is not your user

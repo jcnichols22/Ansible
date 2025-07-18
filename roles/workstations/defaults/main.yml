@@ -2,9 +2,17 @@ snap_apps:
   - code
   - obsidian
   - discord
+  - wave                           # Adds Wave Terminal via snap
 
 apt_apps:
   - 1password
   - brave-browser
   - nextcloud-desktop
   - tmux
+
+pacman_apps:
+  - 1password
+  - brave-bin                     # AUR: Use brave-bin for Brave browser
+  - nextcloud-client
+  - tmux
+  # - wave-terminal                # AUR package for Arch-based systems (see note below)

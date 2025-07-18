@@ -1,30 +1,15 @@
 # --- Package Management ---
-- name: Update apt cache (Debian/Ubuntu)
+- name: Update apt cache
   ansible.builtin.apt:
     update_cache: true
     cache_valid_time: 3600
   tags: packages
-  when: ansible_os_family == "Debian"
 
-- name: Update pacman cache (Arch/Archcraft)
-  community.general.pacman:
-    update_cache: true
-  tags: packages
-  when: ansible_os_family == "Archlinux"
-
-- name: Install required packages (Debian/Ubuntu)
+- name: Install required packages
   ansible.builtin.apt:
     name: "{{ required_packages }}"
     state: present
   tags: packages
-  when: ansible_os_family == "Debian"
-
-- name: Install required packages (Arch/Archcraft)
-  community.general.pacman:
-    name: "{{ required_packages }}"
-    state: present
-  tags: packages
-  when: ansible_os_family == "Archlinux"
 
 # --- User Management ---
 - name: Ensure users exist
@@ -45,23 +30,13 @@
   loop: "{{ users }}"
   tags: users
 
-# --- Sudo Group Management ---
-- name: Add users to sudo group (Debian/Ubuntu)
+- name: Add users to sudo group
   ansible.builtin.user:
     name: "{{ item.name }}"
     groups: sudo
     append: yes
   loop: "{{ users }}"
-  when: ansible_os_family == "Debian" and (item.sudo | default(false))
-  tags: sudo
-
-- name: Add users to wheel group (Arch/Archcraft)
-  ansible.builtin.user:
-    name: "{{ item.name }}"
-    groups: wheel
-    append: yes
-  loop: "{{ users }}"
-  when: ansible_os_family == "Archlinux" and (item.sudo | default(false))
+  when: item.sudo | default(false)
   tags: sudo
 
 - name: Create sudoers file for users with NOPASSWD
@@ -75,6 +50,5 @@
   loop: "{{ users }}"
   when: item.nopasswd | default(false)
   tags: sudo
-
 # --- Dotfiles ---
-# (your dotfiles tasks go here, if any)
+

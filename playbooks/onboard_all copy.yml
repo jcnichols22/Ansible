@@ -41,55 +41,20 @@
   become: true
 
   pre_tasks:
-    # Ubuntu/Debian
-    - name: Update and upgrade apt packages (Debian/Ubuntu)
+    - name: Update and upgrade apt packages
       ansible.builtin.apt:
         update_cache: yes
         upgrade: dist
         autoremove: yes
         autoclean: yes
       tags: apt
-      when: ansible_os_family == "Debian"
 
-    - name: Ensure snapd is installed (Debian/Ubuntu)
+    - name: Ensure snapd is installed
       ansible.builtin.apt:
         name: snapd
         state: present
       tags: snap
-      when: ansible_os_family == "Debian"
 
-    # Archcraft/Arch
-    - name: Update all packages (Arch/Archcraft)
-      community.general.pacman:
-        update_cache: yes
-        upgrade: yes
-      tags: pacman
-      when: ansible_os_family == "Archlinux"
-
-    - name: Ensure snapd is installed (Arch/Archcraft)
-      community.general.pacman:
-        name: snapd
-        state: present
-      tags: snap
-      when: ansible_os_family == "Archlinux"
-
-    - name: Enable and start snapd.socket (Arch/Archcraft)
-      ansible.builtin.systemd:
-        name: snapd.socket
-        enabled: yes
-        state: started
-      become: true
-      when: ansible_os_family == "Archlinux"
-
-    - name: Ensure /snap symlink exists (Arch/Archcraft)
-      ansible.builtin.file:
-        src: /var/lib/snapd/snap
-        dest: /snap
-        state: link
-      become: true
-      when: ansible_os_family == "Archlinux"
-
-    # COMMON: for both
     - name: Check if snap command is available
       ansible.builtin.stat:
         path: /usr/bin/snap
