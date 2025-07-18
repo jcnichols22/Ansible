@@ -54,9 +54,16 @@
   when: ansible_os_family == "Archlinux" and pacman_apps is defined and pacman_apps | length > 0
 
 # Optionally: Install AUR packages using yay (if you have aur_apps defined)
-- name: Install AUR packages with yay (Arch)
-  community.general.yay:
-    name: "{{ aur_apps }}"
-    state: present
+# - name: Install AUR packages with yay (Arch)
+#   community.general.yay:
+#     name: "{{ aur_apps }}"
+#     state: present
+#   become: true
+#   when: ansible_os_family == "Archlinux" and aur_apps is defined and aur_apps | length > 0
+
+- name: Install AUR packages with yay
+  ansible.builtin.command:
+    cmd: yay -S --noconfirm {{ item }}
+  loop: "{{ aur_apps }}"
   become: true
   when: ansible_os_family == "Archlinux" and aur_apps is defined and aur_apps | length > 0
