@@ -3,7 +3,7 @@
 - name: Ensure users and SSH keys exist (all hosts, root only, before facts)
   hosts: all
   become: true
-  gather_facts: false
+  gather_facts: true
   vars_files:
     - files/users.yml
   roles:
