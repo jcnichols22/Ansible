@@ -1,6 +1,15 @@
 ---
-# Combined Onboarding Playbook
+# Step 1: Bootstrap users and SSH keys everywhere
+- name: Ensure users and SSH keys exist (all hosts, root only, before facts)
+  hosts: all
+  become: true
+  gather_facts: false
+  vars_files:
+    - files/users.yml
+  roles:
+    - role: base
 
+# Step 2: Media Servers (Ubuntu/Debian only)
 - name: Onboarding for Media Servers
   hosts: media_servers
   become: true
@@ -32,16 +41,16 @@
       tags: snap
 
   roles:
-    - base
     - dotfiles
     - media_server
 
+# Step 3: Workstations (Ubuntu/Debian AND Archcraft)
 - name: Onboarding for Workstations
   hosts: workstations
   become: true
 
   pre_tasks:
-    # Ubuntu/Debian
+    # Ubuntu/Debian setup
     - name: Update and upgrade apt packages (Debian/Ubuntu)
       ansible.builtin.apt:
         update_cache: yes
@@ -58,7 +67,7 @@
       tags: snap
       when: ansible_os_family == "Debian"
 
-    # Archcraft/Arch
+    # Archcraft setup
     - name: Update all packages (Arch/Archcraft)
       community.general.pacman:
         update_cache: yes
@@ -102,10 +111,10 @@
       tags: snap
 
   roles:
-    - base
     - dotfiles
     - workstations
 
+# Step 4: All Other Hosts (Ubuntu/Debian only)
 - name: Onboarding for All Other Hosts
   hosts: all:!media_servers:!workstations
   become: true
@@ -137,5 +146,4 @@
       tags: snap
 
   roles:
-    - base
     - dotfiles
