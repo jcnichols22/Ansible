@@ -1,18 +1,17 @@
-  hosts: media_server
-  remote_user: josh
-  become: false
-  tasks:
-    - name: Pull latest images for all containers
-      ansible.builtin.shell: |
-        docker compose pull
-      args:
-        chdir: /home/josh/media
-      tags: pull
+hosts: media_server
+remote_user: josh
+become: false
+tasks:
+  - name: Pull latest images for all containers
+    ansible.builtin.shell: |
+      docker compose pull
+    args:
+      chdir: /home/josh/media
+    tags: pull
 
-    - name: Recreate and start containers with latest images
-      ansible.builtin.shell: |
-        docker compose up -d
-      args:
-        chdir: /home/josh/media
-      tags: up
-- name: Update Docker containers on media server
+  - name: Recreate and start containers with latest images
+    ansible.builtin.shell: |
+      docker compose up -d
+    args:
+      chdir: /home/josh/media
+    tags: up
