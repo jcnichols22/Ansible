@@ -3,7 +3,7 @@
 - name: Onboard LXC containers
   hosts: lxc_containers
   vars:
-    ansible_user: ansible
+    ansible_user: root
   become: true
   gather_facts: true
   vars_files:
