@@ -11,20 +11,40 @@
     mode: "0644"
   when: ansible_os_family == "Debian"
 
-- name: Install common GPG keys for third-party repos
-  ansible.builtin.apt_key:
-    url: "{{ item.url }}"
-    state: present
-  loop:
-    - url: https://www.postgresql.org/media/keys/ACCC4CF8.asc
-    - url: https://packages.sury.org/php/apt.gpg
+- name: Download PostgreSQL GPG key
+  ansible.builtin.get_url:
+    url: https://www.postgresql.org/media/keys/ACCC4CF8.asc
+    dest: /tmp/postgresql.asc
+  ignore_errors: true
   when: ansible_os_family == "Debian"
+
+- name: Dearmor and install PostgreSQL GPG key
+  ansible.builtin.command: gpg --dearmor -o /usr/share/keyrings/postgresql-keyring.gpg /tmp/postgresql.asc
+  args:
+    creates: /usr/share/keyrings/postgresql-keyring.gpg
+  ignore_errors: true
+  when: ansible_os_family == "Debian" and ansible_distribution_release is defined
+
+- name: Download SURY GPG key
+  ansible.builtin.get_url:
+    url: https://packages.sury.org/php/apt.gpg
+    dest: /tmp/sury.asc
+  ignore_errors: true
+  when: ansible_os_family == "Debian"
+
+- name: Dearmor and install SURY GPG key
+  ansible.builtin.command: gpg --dearmor -o /usr/share/keyrings/sury-keyring.gpg /tmp/sury.asc
+  args:
+    creates: /usr/share/keyrings/sury-keyring.gpg
+  ignore_errors: true
+  when: ansible_os_family == "Debian" and ansible_distribution_release is defined
 
 - name: Install Tailscale GPG key
   ansible.builtin.get_url:
     url: https://pkgs.tailscale.com/stable/debian/{{ ansible_distribution_release }}.noarmor.gpg
     dest: /usr/share/keyrings/tailscale-archive-keyring.gpg
     mode: "0644"
+  ignore_errors: true
   when: ansible_os_family == "Debian"
 
 - name: Update apt cache (Debian/Ubuntu)
