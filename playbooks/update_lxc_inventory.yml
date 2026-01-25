@@ -1,0 +1,48 @@
+---
+- name: Update LXC container inventory
+  hosts: proxmox_nodes
+  gather_facts: false
+  tasks:
+    - name: Get list of LXC containers
+      command: pct list --output-format json
+      register: pct_list_output
+      become: true  # Assumes sudo access for pct; adjust if not needed
+
+    - name: Parse container details
+      command: pct config {{ item.vmid }} --output-format json
+      register: pct_config_output
+      loop: "{{ pct_list_output.stdout | from_json }}"
+      when: item.status == 'running'  # Only include running containers
+      become: true
+
+    - name: Get current IP from running container
+      command: pct exec {{ item.item.vmid }} -- ip -4 addr show eth0 | grep -oP '(?<=inet\s)\d+(\.\d+){3}'
+      register: ip_output
+      loop: "{{ pct_config_output.results }}"
+      when: item.item.status == 'running' and item.stdout is defined
+      become: true
+
+    - name: Extract IPs and hostnames
+      set_fact:
+        lxc_containers: "{{ lxc_containers | default([]) + [{'ip': item.stdout, 'hostname': (item.item.stdout | from_json).hostname}] }}"
+      loop: "{{ ip_output.results }}"
+      when: item.stdout is defined and item.stdout | length > 0
+
+    - name: Aggregate container data to localhost
+      set_fact:
+        all_lxc_containers: "{{ all_lxc_containers | default([]) + lxc_containers | default([]) }}"
+      delegate_to: localhost
+
+  - name: Update hosts.ini on localhost
+    local_action:
+      module: blockinfile
+      path: "{{ playbook_dir }}/inventory/hosts.ini"
+      block: |
+        [lxc_containers]
+        # Updated automatically by playbook on {{ ansible_date_time.iso8601 }}
+        {% for container in all_lxc_containers %}
+        {{ container.ip }}  # {{ container.hostname }}
+        {% endfor %}
+      marker: "# {mark} ANSIBLE MANAGED BLOCK - LXC CONTAINERS"
+      backup: true
+    run_once: true
