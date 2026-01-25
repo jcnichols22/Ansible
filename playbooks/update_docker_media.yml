@@ -2,19 +2,35 @@
 - hosts: media_server
   remote_user: josh
   become: false
+  vars:
+    docker_services:
+      - prowlarr
+      - bazarr
+      - sonarr
+      - radarr
+      - lazylibrarian
+      - readarr
+      - jellyfin
+      - jellyseerr
+      - qbittorrent
+      - tdarr
+      - tdarr-node
+      - arm-rippers
+      - calibre
+      - calibre-web
   tasks:
-    - name: Pull latest images for all containers
-      ansible.builtin.shell: |
-        docker compose pull
+    - name: Pull latest image for {{ item }}
+      ansible.builtin.shell: docker compose pull {{ item }}
       args:
         chdir: /home/josh/media
+      loop: "{{ docker_services }}"
       tags: pull
       ignore_errors: yes
 
-    - name: Recreate and start containers with latest images
-      ansible.builtin.shell: |
-        docker compose up -d
+    - name: Recreate and start container for {{ item }}
+      ansible.builtin.shell: docker compose up -d {{ item }}
       args:
         chdir: /home/josh/media
+      loop: "{{ docker_services }}"
       tags: up
       ignore_errors: yes
