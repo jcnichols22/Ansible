@@ -9,6 +9,7 @@
       args:
         chdir: /home/josh/media
       tags: pull
+      ignore_errors: yes
 
     - name: Recreate and start containers with latest images
       ansible.builtin.shell: |
@@ -16,3 +17,4 @@
       args:
         chdir: /home/josh/media
       tags: up
+      ignore_errors: yes
