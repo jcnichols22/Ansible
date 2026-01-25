@@ -1,4 +1,14 @@
 # --- Package Management ---
+
+- name: Ensure correct Debian codename in sources.list (fix noble)
+  ansible.builtin.replace:
+    path: /etc/apt/sources.list
+    regexp: 'noble'
+    replace: 'bookworm'
+  when: ansible_distribution == "Debian"
+  tags: fix_sources
+
+- name: Set correct sources.list for Debian
   ansible.builtin.copy:
     dest: /etc/apt/sources.list
     content: |
@@ -9,14 +19,6 @@
     group: root
     mode: "0644"
   when: ansible_distribution == "Debian"
-  
-  - name: Ensure correct Debian codename in sources.list
-    ansible.builtin.replace:
-      path: /etc/apt/sources.list
-      regexp: 'noble'
-      replace: 'bookworm'
-    when: ansible_distribution == "Debian"
-    tags: fix_sources
 
   ansible.builtin.copy:
     dest: /etc/apt/sources.list
