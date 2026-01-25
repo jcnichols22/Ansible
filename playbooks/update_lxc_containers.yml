@@ -2,6 +2,8 @@
 # This playbook updates all packages on the specified LXC containers.
 - name: Update LXC containers
   hosts: lxc_containers
+  vars:
+    ansible_user: ansible
   become: true
 
   tasks:

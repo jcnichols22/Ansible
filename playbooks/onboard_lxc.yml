@@ -1,0 +1,12 @@
+---
+# Onboard LXC containers with users and SSH keys
+- name: Onboard LXC containers
+  hosts: lxc_containers
+  vars:
+    ansible_user: ansible
+  become: true
+  gather_facts: true
+  vars_files:
+    - files/users.yml
+  roles:
+    - role: base
