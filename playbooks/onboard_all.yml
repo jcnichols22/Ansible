@@ -2,6 +2,8 @@
 # Step 1: Bootstrap users and SSH keys everywhere
 - name: Ensure users and SSH keys exist (all hosts, root only, before facts)
   hosts: all
+  vars:
+    ansible_user: root
   become: true
   gather_facts: true
   vars_files:
