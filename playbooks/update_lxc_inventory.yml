@@ -5,6 +5,7 @@
   vars:
     ansible_user: ansible
   become: true
+  tasks:
     - name: Get list of LXC containers
       command: pct list --output-format json
       register: pct_list_output
