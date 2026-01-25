@@ -7,27 +7,20 @@
   become: true
   tasks:
     - name: Get list of LXC containers
-      command: pct list --output-format json
+      command: pct list
       register: pct_list_output
       become: true # Assumes sudo access for pct; adjust if not needed
 
-    - name: Parse container details
-      command: pct config {{ item.vmid }} --output-format json
-      register: pct_config_output
-      loop: "{{ pct_list_output.stdout | from_json }}"
-      when: item.status == 'running' # Only include running containers
-      become: true
-
-    - name: Get current IP from running container
-      command: pct exec {{ item.item.vmid }} -- ip -4 addr show eth0 | grep -oP '(?<=inet\s)\d+(\.\d+){3}'
+    - name: Parse container details and get IPs
+      command: pct exec {{ item.split()[0] }} -- ip -4 addr show eth0 | grep -oP '(?<=inet\s)\d+(\.\d+){3}'
       register: ip_output
-      loop: "{{ pct_config_output.results }}"
-      when: item.item.status == 'running' and item.stdout is defined
+      loop: "{{ pct_list_output.stdout_lines[1:] }}" # Skip header line
+      when: item.split()[1] == 'running' # Only running containers
       become: true
 
     - name: Extract IPs and hostnames
       set_fact:
-        lxc_containers: "{{ lxc_containers | default([]) + [{'ip': item.stdout, 'hostname': (item.item.stdout | from_json).hostname}] }}"
+        lxc_containers: "{{ lxc_containers | default([]) + [{'ip': item.stdout, 'hostname': item.item.split()[2]}] }}"
       loop: "{{ ip_output.results }}"
       when: item.stdout is defined and item.stdout | length > 0
 
