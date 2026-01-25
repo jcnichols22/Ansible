@@ -5,8 +5,7 @@
   vars:
     ansible_user: ansible
   become: true
-  vars_files:
-    - ../files/users.yml
+  # users variable now loaded automatically from group_vars/all.yml
 
   tasks:
     - name: Update package cache

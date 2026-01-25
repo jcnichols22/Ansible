@@ -6,7 +6,6 @@
     ansible_user: root
   become: true
   gather_facts: true
-  vars_files:
-    - files/users.yml
+  # users variable now loaded automatically from group_vars/all.yml
   roles:
     - role: base
