@@ -1,100 +1,100 @@
 # --- Package Management ---
 
-- name: Ensure correct Debian codename in sources.list (fix noble)
-  ansible.builtin.replace:
-    path: /etc/apt/sources.list
-    regexp: 'noble'
-    replace: 'bookworm'
-  when: ansible_distribution == "Debian"
-  tags: fix_sources
-
-- name: Set correct sources.list for Debian
+- name: Set correct APT sources for Debian
   ansible.builtin.copy:
     dest: /etc/apt/sources.list
     content: |
-      deb http://deb.debian.org/debian {{ ansible_distribution_release }} main contrib non-free non-free-firmware
-      deb http://deb.debian.org/debian {{ ansible_distribution_release }}-updates main contrib non-free non-free-firmware
-      deb http://deb.debian.org/debian-security {{ ansible_distribution_release }}-security main contrib non-free non-free-firmware
+      deb http://deb.debian.org/debian bookworm main contrib non-free non-free-firmware
+      deb http://deb.debian.org/debian bookworm-updates main contrib non-free non-free-firmware
+      deb http://security.debian.org/debian-security bookworm-security main contrib non-free non-free-firmware
     owner: root
     group: root
     mode: "0644"
   when: ansible_distribution == "Debian"
+  tags: fix_sources
 
+- name: Set correct APT sources for Ubuntu
   ansible.builtin.copy:
     dest: /etc/apt/sources.list
     content: |
-      deb http://archive.ubuntu.com/ubuntu {{ ansible_distribution_release }} main restricted universe multiverse
-      deb http://archive.ubuntu.com/ubuntu {{ ansible_distribution_release }}-updates main restricted universe multiverse
-      deb http://security.ubuntu.com/ubuntu {{ ansible_distribution_release }}-security main restricted universe multiverse
+      deb http://archive.ubuntu.com/ubuntu noble main restricted universe multiverse
+      deb http://archive.ubuntu.com/ubuntu noble-updates main restricted universe multiverse
+      deb http://security.ubuntu.com/ubuntu noble-security main restricted universe multiverse
     owner: root
     group: root
     mode: "0644"
   when: ansible_distribution == "Ubuntu"
+  tags: fix_sources
+
+# --- GPG Keys ---
 
 - name: Download PostgreSQL GPG key
   ansible.builtin.get_url:
     url: https://www.postgresql.org/media/keys/ACCC4CF8.asc
     dest: /tmp/postgresql.asc
   ignore_errors: true
-  when: ansible_os_family == "Debian"
+  when: ansible_distribution in ["Debian", "Ubuntu"]
 
 - name: Dearmor and install PostgreSQL GPG key
-  ansible.builtin.command: gpg --dearmor -o /usr/share/keyrings/postgresql-keyring.gpg /tmp/postgresql.asc
-  args:
+  ansible.builtin.command:
+    cmd: gpg --dearmor -o /usr/share/keyrings/postgresql-keyring.gpg /tmp/postgresql.asc
     creates: /usr/share/keyrings/postgresql-keyring.gpg
   ignore_errors: true
-  when: ansible_os_family == "Debian" and ansible_distribution_release is defined
+  when: ansible_distribution in ["Debian", "Ubuntu"]
 
-- name: Download SURY GPG key
+- name: Download SURY GPG key (Debian only)
   ansible.builtin.get_url:
     url: https://packages.sury.org/php/apt.gpg
     dest: /tmp/sury.asc
   ignore_errors: true
-  when: ansible_os_family == "Debian"
+  when: ansible_distribution == "Debian"
 
-- name: Dearmor and install SURY GPG key
-  ansible.builtin.command: gpg --dearmor -o /usr/share/keyrings/sury-keyring.gpg /tmp/sury.asc
-  args:
+- name: Dearmor and install SURY GPG key (Debian only)
+  ansible.builtin.command:
+    cmd: gpg --dearmor -o /usr/share/keyrings/sury-keyring.gpg /tmp/sury.asc
     creates: /usr/share/keyrings/sury-keyring.gpg
   ignore_errors: true
-  when: ansible_os_family == "Debian" and ansible_distribution_release is defined
+  when: ansible_distribution == "Debian"
 
-- name: Install Tailscale GPG key
+- name: Install Tailscale GPG key (Debian only)
   ansible.builtin.get_url:
-    url: https://pkgs.tailscale.com/stable/debian/{{ ansible_distribution_release }}.noarmor.gpg
+    url: https://pkgs.tailscale.com/stable/debian/bookworm.noarmor.gpg
     dest: /usr/share/keyrings/tailscale-archive-keyring.gpg
     mode: "0644"
   ignore_errors: true
-  when: ansible_os_family == "Debian"
+  when: ansible_distribution == "Debian"
+
+# --- Package Installation ---
 
 - name: Update apt cache (Debian/Ubuntu)
   ansible.builtin.apt:
     update_cache: true
     cache_valid_time: 3600
+  when: ansible_distribution in ["Debian", "Ubuntu"]
   tags: packages
-  when: ansible_os_family == "Debian"
-
-- name: Update pacman cache (Arch/Archcraft)
-  community.general.pacman:
-    update_cache: true
-  tags: packages
-  when: ansible_os_family == "Archlinux"
 
 - name: Install required packages (Debian/Ubuntu)
   ansible.builtin.apt:
     name: "{{ required_packages }}"
     state: present
+  when: ansible_distribution in ["Debian", "Ubuntu"]
   tags: packages
-  when: ansible_os_family == "Debian"
+
+- name: Update pacman cache (Arch/Archcraft)
+  community.general.pacman:
+    update_cache: true
+  when: ansible_os_family == "Archlinux"
+  tags: packages
 
 - name: Install required packages (Arch/Archcraft)
   community.general.pacman:
     name: "{{ required_packages }}"
     state: present
-  tags: packages
   when: ansible_os_family == "Archlinux"
+  tags: packages
 
 # --- User Management ---
+
 - name: Ensure users exist
   ansible.builtin.user:
     name: "{{ item.name }}"
@@ -114,13 +114,16 @@
   tags: users
 
 # --- Sudo Group Management ---
+
 - name: Add users to sudo group (Debian/Ubuntu)
   ansible.builtin.user:
     name: "{{ item.name }}"
     groups: sudo
     append: yes
   loop: "{{ users }}"
-  when: ansible_os_family == "Debian" and (item.sudo | default(false))
+  when:
+    - ansible_distribution in ["Debian", "Ubuntu"]
+    - item.sudo | default(false)
   tags: sudo
 
 - name: Add users to wheel group (Arch/Archcraft)
@@ -129,7 +132,9 @@
     groups: wheel
     append: yes
   loop: "{{ users }}"
-  when: ansible_os_family == "Archlinux" and (item.sudo | default(false))
+  when:
+    - ansible_os_family == "Archlinux"
+    - item.sudo | default(false)
   tags: sudo
 
 - name: Create sudoers file for users with NOPASSWD
@@ -143,5 +148,6 @@
   loop: "{{ users }}"
   when: item.nopasswd | default(false)
   tags: sudo
+
 # --- Dotfiles ---
 # (your dotfiles tasks go here, if any)
