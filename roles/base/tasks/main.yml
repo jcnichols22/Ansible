@@ -1,4 +1,32 @@
 # --- Package Management ---
+- name: Set correct sources.list for Debian
+  ansible.builtin.copy:
+    dest: /etc/apt/sources.list
+    content: |
+      deb http://deb.debian.org/debian {{ ansible_distribution_release }} main contrib non-free non-free-firmware
+      deb http://deb.debian.org/debian {{ ansible_distribution_release }}-updates main contrib non-free non-free-firmware
+      deb http://deb.debian.org/debian-security {{ ansible_distribution_release }}-security main contrib non-free non-free-firmware
+    owner: root
+    group: root
+    mode: "0644"
+  when: ansible_os_family == "Debian"
+
+- name: Install common GPG keys for third-party repos
+  ansible.builtin.apt_key:
+    url: "{{ item.url }}"
+    state: present
+  loop:
+    - url: https://www.postgresql.org/media/keys/ACCC4CF8.asc
+    - url: https://packages.sury.org/php/apt.gpg
+  when: ansible_os_family == "Debian"
+
+- name: Install Tailscale GPG key
+  ansible.builtin.get_url:
+    url: https://pkgs.tailscale.com/stable/debian/{{ ansible_distribution_release }}.noarmor.gpg
+    dest: /usr/share/keyrings/tailscale-archive-keyring.gpg
+    mode: "0644"
+  when: ansible_os_family == "Debian"
+
 - name: Update apt cache (Debian/Ubuntu)
   ansible.builtin.apt:
     update_cache: true
@@ -75,6 +103,5 @@
   loop: "{{ users }}"
   when: item.nopasswd | default(false)
   tags: sudo
-
 # --- Dotfiles ---
 # (your dotfiles tasks go here, if any)
