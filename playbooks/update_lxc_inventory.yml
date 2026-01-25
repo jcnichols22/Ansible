@@ -2,7 +2,9 @@
 - name: Update LXC container inventory
   hosts: proxmox_nodes
   gather_facts: false
-  tasks:
+  vars:
+    ansible_user: ansible
+  become: true
     - name: Get list of LXC containers
       command: pct list --output-format json
       register: pct_list_output
