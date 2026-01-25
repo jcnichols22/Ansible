@@ -1,0 +1,10 @@
+---
+- name: Run setup_ssh.sh on Proxmox nodes
+  hosts: proxmox_nodes
+  become: true
+
+  tasks:
+    - name: Execute setup_ssh.sh script
+      command: ./setup_ssh.sh
+      args:
+        chdir: /root
