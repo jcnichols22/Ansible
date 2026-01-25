@@ -12,7 +12,7 @@
       become: true # Assumes sudo access for pct; adjust if not needed
 
     - name: Parse container details and get IPs
-      command: pct exec {{ item.split()[0] }} -- ip -4 addr show eth0 | grep -oP '(?<=inet\s)\d+(\.\d+){3}'
+      command: pct exec {{ item.split()[0] }} -- bash -c "ip -4 addr show eth0 | grep -oP '(?<=inet\s)\d+(\.\d+){3}'"
       register: ip_output
       loop: "{{ pct_list_output.stdout_lines[1:] }}" # Skip header line
       when: item.split()[1] == 'running' # Only running containers
