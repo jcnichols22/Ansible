@@ -6,13 +6,13 @@
     - name: Get list of LXC containers
       command: pct list --output-format json
       register: pct_list_output
-      become: true  # Assumes sudo access for pct; adjust if not needed
+      become: true # Assumes sudo access for pct; adjust if not needed
 
     - name: Parse container details
       command: pct config {{ item.vmid }} --output-format json
       register: pct_config_output
       loop: "{{ pct_list_output.stdout | from_json }}"
-      when: item.status == 'running'  # Only include running containers
+      when: item.status == 'running' # Only include running containers
       become: true
 
     - name: Get current IP from running container
@@ -33,16 +33,16 @@
         all_lxc_containers: "{{ all_lxc_containers | default([]) + lxc_containers | default([]) }}"
       delegate_to: localhost
 
-  - name: Update hosts.ini on localhost
-    local_action:
-      module: blockinfile
-      path: "{{ playbook_dir }}/inventory/hosts.ini"
-      block: |
-        [lxc_containers]
-        # Updated automatically by playbook on {{ ansible_date_time.iso8601 }}
-        {% for container in all_lxc_containers %}
-        {{ container.ip }}  # {{ container.hostname }}
-        {% endfor %}
-      marker: "# {mark} ANSIBLE MANAGED BLOCK - LXC CONTAINERS"
-      backup: true
-    run_once: true
+    - name: Update hosts.ini on localhost
+      local_action:
+        module: blockinfile
+        path: "{{ playbook_dir }}/inventory/hosts.ini"
+        block: |
+          [lxc_containers]
+          # Updated automatically by playbook on {{ ansible_date_time.iso8601 }}
+          {% for container in all_lxc_containers %}
+          {{ container.ip }}  # {{ container.hostname }}
+          {% endfor %}
+        marker: "# {mark} ANSIBLE MANAGED BLOCK - LXC CONTAINERS"
+        backup: true
+      run_once: true
