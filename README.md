@@ -16,16 +16,17 @@ ANSIBLE/
 │   └── hosts.ini
 ├── playbooks/
 │   ├── onboard_all.yml
-│   ├── onboard_media.yml
-│   ├── onboard_workstations.yml
-│   ├── onboard.yml
+├── files/
+│   ├── how_to_run_playbooks.txt
+│   ├── sudoer_ansible
+│   └── users.yml
 │   ├── update_bash.yml
 │   └── update_servers.yml
 ├── roles/
 │   ├── base/
 │   │   ├── defaults/
 │   │   ├── meta/
-│   │   └── tasks/
+│   ├── onboard.yml
 │   ├── dotfiles/
 │   │   ├── defaults/
 │   │   └── tasks/
@@ -55,7 +56,7 @@ To run the Ansible playbooks, ensure you have Ansible installed and configured o
 ansible-playbook playbooks/onboard.yml -K
 ```
 This command will prompt for the sudo password (`-K`) and execute the `onboard.yml` playbook, which includes tasks for setting up the Proxmox cluster, media server, and workstations.
-
+To run a playbook, use:
 ## Playbooks Overview 
 - **onboard.yml**: Main playbook that orchestrates the onboarding of all components.
 - **onboard_all.yml**: Playbook to onboard all components including Proxmox, media server, and workstations.
@@ -63,7 +64,7 @@ This command will prompt for the sudo password (`-K`) and execute the `onboard.y
 - **onboard_workstations.yml**: Playbook for configuring workstations.
 - **update_bash.yml**: Playbook to update bash configurations and install necessary packages.
 - **update_servers.yml**: Playbook to update server configurations and packages.
-
+- **onboard_all.yml**: Complete onboarding for all hosts (users, SSH, media servers, workstations)
 ## Roles Overview
 - **base**: Contains common tasks and configurations shared across all servers.
 - **dotfiles**: Manages user-specific dotfiles and configurations.
