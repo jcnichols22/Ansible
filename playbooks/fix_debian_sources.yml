@@ -1,0 +1,18 @@
+---
+- name: Fix apt sources for Debian hosts
+  hosts: lxc_containers
+  become: yes
+  tasks:
+    - name: Replace Ubuntu noble with Debian bookworm in sources.list
+      ansible.builtin.replace:
+        path: /etc/apt/sources.list
+        regexp: "noble"
+        replace: "bookworm"
+      register: sources_replaced
+      notify: Update apt cache
+
+  handlers:
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: yes
+        cache_valid_time: 3600
