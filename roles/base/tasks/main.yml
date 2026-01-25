@@ -95,6 +95,11 @@
 
 # --- User Management ---
 
+- name: Debug users variable
+  debug:
+    var: users
+  tags: users
+
 - name: Ensure users exist
   ansible.builtin.user:
     name: "{{ item.name }}"
@@ -148,6 +153,5 @@
   loop: "{{ users }}"
   when: item.nopasswd | default(false)
   tags: sudo
-
 # --- Dotfiles ---
 # (your dotfiles tasks go here, if any)
