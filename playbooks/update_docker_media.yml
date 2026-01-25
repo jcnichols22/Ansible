@@ -1,7 +1,8 @@
 ---
-- name: Update Docker containers on media server
+-- name: Update Docker containers on media server
   hosts: media_server
-  become: yes
+  remote_user: josh
+  become: false
   tasks:
     - name: Pull latest images for all containers
       ansible.builtin.shell: |
