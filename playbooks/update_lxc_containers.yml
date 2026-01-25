@@ -1,0 +1,17 @@
+---
+# This playbook updates all packages on the specified LXC containers.
+- name: Update LXC containers
+  hosts: lxc_containers
+  become: true
+
+  tasks:
+    - name: Update package cache
+      apt:
+        update_cache: true
+
+    - name: Upgrade all packages
+      apt:
+        # 'upgrade: dist' performs a dist-upgrade, which may remove packages.
+        upgrade: dist
+        autoremove: true
+        autoclean: true
