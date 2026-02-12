@@ -1,0 +1,96 @@
+---
+# Setup Syncthing dotfiles sync following the proven pattern from your setup
+# Hub: LXC container with /syncthing/dotfiles-josh
+# Clients: Proxmox nodes and other servers syncing to local dotfiles
+
+- name: Setup Syncthing dotfiles sync hub (LXC)
+  hosts: lxc_containers
+  become: true
+  gather_facts: true
+
+  vars:
+    syncthing_user: "josh"
+    syncthing_service_type: "system"
+    syncthing_data_dir: "/syncthing"
+    syncthing_dotfiles_dir: "/syncthing/dotfiles-{{ syncthing_user }}"
+
+    # Hub configuration - accepts connections from all clients
+    syncthing_folders:
+      - id: "dotfiles"
+        label: "Dotfiles"
+        path: "{{ syncthing_dotfiles_dir }}"
+        type: "sendreceive"
+        rescan_interval: 3600
+        ignore_patterns:
+          - ".git" # Don't sync git internals
+          - ".gitignore"
+        # Add devices after running get_syncthing_device_ids.yml
+
+  roles:
+    - syncthing
+
+  post_tasks:
+    - name: Display hub setup instructions
+      ansible.builtin.debug:
+        msg: |
+          Syncthing Hub setup on {{ ansible_hostname }}
+
+          Next steps:
+          1. Access GUI via: ssh -L 8385:127.0.0.1:8384 {{ syncthing_user }}@{{ ansible_default_ipv4.address }}
+          2. Set GUI username/password in Settings
+          3. Note the Device ID (Actions → Show ID)
+          4. Run get_syncthing_device_ids.yml to collect all device IDs
+          5. Update inventory with device IDs
+          6. Re-run this playbook to add devices to folder sharing
+      tags: syncthing
+
+- name: Setup Syncthing dotfiles sync clients (Proxmox nodes)
+  hosts: proxmox_nodes
+  become: true
+  gather_facts: true
+
+  vars:
+    syncthing_user: "josh"
+    syncthing_service_type: "system"
+    syncthing_data_dir: "/syncthing"
+    syncthing_dotfiles_dir: "/syncthing/dotfiles-{{ syncthing_user }}"
+
+    # Client configuration
+    syncthing_folders:
+      - id: "dotfiles"
+        label: "Dotfiles"
+        path: "{{ syncthing_dotfiles_dir }}"
+        type: "sendreceive"
+        rescan_interval: 3600
+        ignore_patterns:
+          - ".git"
+        # Add hub device after running get_syncthing_device_ids.yml
+
+  roles:
+    - syncthing
+
+  post_tasks:
+    - name: Create symlinks to dotfiles (optional)
+      ansible.builtin.file:
+        src: "{{ syncthing_dotfiles_dir }}/.bash_aliases"
+        dest: "/home/{{ syncthing_user }}/.bash_aliases"
+        state: link
+        owner: "{{ syncthing_user }}"
+        group: "{{ syncthing_user }}"
+      when: syncthing_dotfiles_dir != "/home/{{ syncthing_user }}/dotfiles"
+      ignore_errors: true
+      tags: syncthing
+
+    - name: Display client setup instructions
+      ansible.builtin.debug:
+        msg: |
+          Syncthing Client setup on {{ ansible_hostname }}
+
+          Dotfiles syncing to: {{ syncthing_dotfiles_dir }}
+
+          To use dotfiles, add to ~/.bashrc:
+          source {{ syncthing_dotfiles_dir }}/.bash_aliases
+
+          Or create symlink:
+          ln -sf {{ syncthing_dotfiles_dir }}/.bash_aliases ~/.bash_aliases
+      tags: syncthing

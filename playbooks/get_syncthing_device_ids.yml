@@ -1,0 +1,81 @@
+---
+# Get Syncthing device IDs from all hosts
+# This playbook collects device IDs for easy reference when configuring sync
+
+- name: Gather Syncthing device IDs
+  hosts: "{{ target_hosts | default('all') }}"
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Check if Syncthing is installed
+      ansible.builtin.command: which syncthing
+      register: syncthing_check
+      failed_when: false
+      changed_when: false
+      tags: syncthing
+
+    - name: Get Syncthing device ID
+      ansible.builtin.command: syncthing --device-id
+      register: device_id
+      changed_when: false
+      when: syncthing_check.rc == 0
+      become_user: "{{ syncthing_user | default('josh') }}"
+      tags: syncthing
+
+    - name: Display device information
+      ansible.builtin.debug:
+        msg: |
+          Host: {{ ansible_hostname }} ({{ ansible_default_ipv4.address }})
+          Device ID: {{ device_id.stdout if device_id is defined and device_id.stdout is defined else 'Not installed' }}
+      when: syncthing_check.rc == 0
+      tags: syncthing
+
+    - name: Collect device info for summary
+      ansible.builtin.set_fact:
+        syncthing_device_info:
+          hostname: "{{ ansible_hostname }}"
+          ip: "{{ ansible_default_ipv4.address }}"
+          device_id: "{{ device_id.stdout if device_id is defined and device_id.stdout is defined else 'Not installed' }}"
+      when: syncthing_check.rc == 0
+      tags: syncthing
+
+    - name: Add to device list
+      ansible.builtin.set_fact:
+        all_devices: "{{ all_devices | default([]) + [syncthing_device_info] }}"
+      when: syncthing_check.rc == 0
+      tags: syncthing
+
+- name: Display summary of all devices
+  hosts: localhost
+  gather_facts: false
+
+  tasks:
+    - name: Create device summary
+      ansible.builtin.debug:
+        msg: |
+          ================================================
+          SYNCTHING DEVICE IDs
+          ================================================
+          {% for host in groups['all'] %}
+          {% set host_vars = hostvars[host] %}
+          {% if host_vars.syncthing_device_info is defined %}
+          {{ host_vars.syncthing_device_info.hostname }}:
+            IP: {{ host_vars.syncthing_device_info.ip }}
+            Device ID: {{ host_vars.syncthing_device_info.device_id }}
+          {% endif %}
+          {% endfor %}
+          ================================================
+
+          Copy these IDs into your playbook variables:
+
+          syncthing_devices:
+          {% for host in groups['all'] %}
+          {% set host_vars = hostvars[host] %}
+          {% if host_vars.syncthing_device_info is defined %}
+            - name: "{{ host_vars.syncthing_device_info.hostname }}"
+              id: "{{ host_vars.syncthing_device_info.device_id }}"
+              addresses: "tcp://{{ host_vars.syncthing_device_info.ip }}:22000"
+          {% endif %}
+          {% endfor %}
+      tags: syncthing

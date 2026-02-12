@@ -1,0 +1,30 @@
+---
+# Syncthing role metadata
+
+dependencies: []
+
+galaxy_info:
+  author: jcnichols22
+  description: Install and configure Syncthing for file synchronization
+  license: MIT
+  min_ansible_version: "2.9"
+
+  platforms:
+    - name: Debian
+      versions:
+        - bookworm
+        - bullseye
+    - name: Ubuntu
+      versions:
+        - noble
+        - jammy
+        - focal
+    - name: ArchLinux
+      versions:
+        - all
+
+  galaxy_tags:
+    - syncthing
+    - sync
+    - file-sync
+    - backup

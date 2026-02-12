@@ -1,0 +1,37 @@
+---
+# Deploy Syncthing to Proxmox and Debian/Ubuntu hosts
+# This playbook installs Syncthing using system service (not user service)
+# This avoids linger/user-bus issues on Proxmox
+
+- name: Deploy Syncthing to Proxmox and servers
+  hosts: all
+  become: true
+  gather_facts: true
+
+  vars:
+    syncthing_user: "josh"
+    syncthing_service_type: "system" # Use system service for PVE compatibility
+    syncthing_data_dir: "/syncthing"
+    syncthing_dotfiles_dir: "/syncthing/dotfiles-{{ syncthing_user }}"
+
+    # Note: For NixOS, use declarative configuration.nix instead of Ansible
+    # See roles/syncthing/README.md for NixOS setup
+
+  roles:
+    - syncthing
+
+  post_tasks:
+    - name: Display Syncthing service info
+      ansible.builtin.debug:
+        msg: |
+          Syncthing installed on {{ ansible_hostname }}
+          Service: syncthing-{{ syncthing_user }}
+          Status: systemctl status syncthing-{{ syncthing_user }}
+
+          Access GUI via SSH tunnel:
+          ssh -L 8385:127.0.0.1:8384 {{ syncthing_user }}@{{ ansible_default_ipv4.address }}
+          Then browse to: http://127.0.0.1:8385
+
+          Data directory: {{ syncthing_data_dir }}
+          Dotfiles directory: {{ syncthing_dotfiles_dir }}
+      tags: syncthing

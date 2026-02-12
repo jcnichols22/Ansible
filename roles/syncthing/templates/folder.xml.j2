@@ -1,0 +1,32 @@
+<configuration version="37">
+    <folder id="{{ item.id }}" label="{{ item.label }}" path="{{ item.path }}" type="{{ item.type | default('sendreceive') }}" rescanIntervalS="{{ item.rescan_interval | default(3600) }}" fsWatcherEnabled="true" fsWatcherDelayS="10" ignorePerms="{{ item.ignore_perms | default(false) | lower }}" autoNormalize="true">
+{%- for device_name in item.devices %}
+{%- set device = syncthing_devices | selectattr('name', 'equalto', device_name) | first | default(none) %}
+{%- if device %}
+        <device id="{{ device.id }}" introducedBy=""></device>
+{%- endif %}
+{%- endfor %}
+        <minDiskFree unit="%">1</minDiskFree>
+        <versioning></versioning>
+        <copiers>0</copiers>
+        <pullerMaxPendingKiB>0</pullerMaxPendingKiB>
+        <hashers>0</hashers>
+        <order>random</order>
+        <ignoreDelete>{{ item.ignore_delete | default(false) | lower }}</ignoreDelete>
+        <scanProgressIntervalS>0</scanProgressIntervalS>
+        <pullerPauseS>0</pullerPauseS>
+        <maxConflicts>10</maxConflicts>
+        <disableSparseFiles>false</disableSparseFiles>
+        <disableTempIndexes>false</disableTempIndexes>
+        <paused>false</paused>
+        <weakHashThresholdPct>25</weakHashThresholdPct>
+        <markerName>.stfolder</markerName>
+        <copyOwnershipFromParent>false</copyOwnershipFromParent>
+        <modTimeWindowS>0</modTimeWindowS>
+        <maxConcurrentWrites>2</maxConcurrentWrites>
+        <disableFsync>false</disableFsync>
+        <blockPullOrder>standard</blockPullOrder>
+        <copyRangeMethod>standard</copyRangeMethod>
+        <caseSensitiveFS>true</caseSensitiveFS>
+        <junctionsAsDirs>false</junctionsAsDirs>
+    </folder>

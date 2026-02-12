@@ -1,0 +1,58 @@
+---
+# Setup Syncthing for LXC containers
+# This playbook installs Syncthing on LXC containers for config synchronization
+
+- name: Setup Syncthing for LXC containers
+  hosts: lxc_containers
+  become: true
+  gather_facts: true
+
+  vars:
+    syncthing_user: "ansible"
+
+    # Central config server
+    syncthing_devices:
+      - name: "ConfigServer"
+        id: "REPLACE-WITH-CONFIG-SERVER-DEVICE-ID"
+        addresses: "tcp://192.168.0.11:22000" # ansible debian lxc
+
+    # Sync application configs to central location
+    syncthing_folders:
+      - id: "lxc-{{ ansible_hostname }}-config"
+        label: "{{ ansible_hostname }} Config"
+        path: "/etc/app-config" # Adjust based on your app
+        devices:
+          - "ConfigServer"
+        type: "sendreceive"
+        rescan_interval: 3600
+        ignore_perms: true # LXC may have different permission requirements
+
+      - id: "lxc-{{ ansible_hostname }}-backup"
+        label: "{{ ansible_hostname }} Backup"
+        path: "/var/backups/app"
+        devices:
+          - "ConfigServer"
+        type: "sendonly"
+        rescan_interval: 86400 # Daily
+
+    # Minimal GUI, localhost only
+    syncthing_gui_enabled: true
+    syncthing_gui_address: "127.0.0.1:8384"
+
+  roles:
+    - syncthing
+
+  post_tasks:
+    - name: Create backup directory if needed
+      ansible.builtin.file:
+        path: "/var/backups/app"
+        state: directory
+        owner: "{{ syncthing_user }}"
+        group: "{{ syncthing_user }}"
+        mode: "0755"
+      tags: syncthing
+
+    - name: Display LXC sync info
+      ansible.builtin.debug:
+        msg: "Syncthing configured on LXC {{ ansible_hostname }}"
+      tags: syncthing

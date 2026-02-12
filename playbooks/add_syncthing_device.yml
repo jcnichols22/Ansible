@@ -1,0 +1,78 @@
+---
+# Add a new device to existing Syncthing installations
+# This playbook updates Syncthing configuration to include a new device
+
+- name: Add new device to Syncthing installations
+  hosts: "{{ target_hosts | default('all') }}"
+  become: true
+  gather_facts: true
+
+  vars:
+    # Specify the new device to add
+    # Override these with --extra-vars
+    new_device_name: "NewDevice"
+    new_device_id: "XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX"
+    new_device_address: "dynamic"
+
+    # Folders to share with the new device (list of folder IDs)
+    share_folders: []
+    # Example: share_folders: ["documents", "pictures"]
+
+  tasks:
+    - name: Stop Syncthing service
+      ansible.builtin.systemd:
+        name: "syncthing@{{ syncthing_user | default('josh') }}"
+        state: stopped
+        scope: system
+      tags: syncthing
+
+    - name: Backup current config
+      ansible.builtin.copy:
+        src: "{{ syncthing_config_dir | default('/home/josh/.config/syncthing') }}/config.xml"
+        dest: "{{ syncthing_config_dir | default('/home/josh/.config/syncthing') }}/config.xml.backup-{{ ansible_date_time.epoch }}"
+        remote_src: true
+        owner: "{{ syncthing_user | default('josh') }}"
+        group: "{{ syncthing_user | default('josh') }}"
+        mode: "0600"
+      tags: syncthing
+
+    - name: Read current config
+      ansible.builtin.slurp:
+        src: "{{ syncthing_config_dir | default('/home/josh/.config/syncthing') }}/config.xml"
+      register: current_config
+      tags: syncthing
+
+    - name: Add new device to config using xmlstarlet (if available)
+      ansible.builtin.shell: |
+        xmlstarlet ed -s '/configuration' -t elem -n 'device' \
+          -i '//device[last()]' -t attr -n 'id' -v '{{ new_device_id }}' \
+          -i '//device[last()]' -t attr -n 'name' -v '{{ new_device_name }}' \
+          -i '//device[last()]' -t attr -n 'compression' -v 'metadata' \
+          -s '//device[last()]' -t elem -n 'address' -v '{{ new_device_address }}' \
+          {{ syncthing_config_dir | default('/home/josh/.config/syncthing') }}/config.xml > /tmp/syncthing_config_new.xml
+        mv /tmp/syncthing_config_new.xml {{ syncthing_config_dir | default('/home/josh/.config/syncthing') }}/config.xml
+      args:
+        executable: /bin/bash
+      when: false # Disabled by default, enable if xmlstarlet is installed
+      tags: syncthing
+
+    - name: Display manual configuration message
+      ansible.builtin.debug:
+        msg: |
+          New device information:
+          Name: {{ new_device_name }}
+          ID: {{ new_device_id }}
+          Address: {{ new_device_address }}
+
+          You can add this device through the Syncthing web GUI at:
+          http://{{ ansible_default_ipv4.address }}:8384
+
+          Or update your inventory variables and re-run the main syncthing playbook.
+      tags: syncthing
+
+    - name: Start Syncthing service
+      ansible.builtin.systemd:
+        name: "syncthing@{{ syncthing_user | default('josh') }}"
+        state: started
+        scope: system
+      tags: syncthing
