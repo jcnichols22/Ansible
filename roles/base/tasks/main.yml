@@ -80,19 +80,6 @@
   when: ansible_distribution in ["Debian", "Ubuntu"]
   tags: packages
 
-- name: Update pacman cache (Arch/Archcraft)
-  community.general.pacman:
-    update_cache: true
-  when: ansible_os_family == "Archlinux"
-  tags: packages
-
-- name: Install required packages (Arch/Archcraft)
-  community.general.pacman:
-    name: "{{ required_packages }}"
-    state: present
-  when: ansible_os_family == "Archlinux"
-  tags: packages
-
 # --- User Management ---
 
 - name: Debug users variable
@@ -128,17 +115,6 @@
   loop: "{{ users }}"
   when:
     - ansible_distribution in ["Debian", "Ubuntu"]
-    - item.sudo | default(false)
-  tags: sudo
-
-- name: Add users to wheel group (Arch/Archcraft)
-  ansible.builtin.user:
-    name: "{{ item.name }}"
-    groups: wheel
-    append: yes
-  loop: "{{ users }}"
-  when:
-    - ansible_os_family == "Archlinux"
     - item.sudo | default(false)
   tags: sudo
 

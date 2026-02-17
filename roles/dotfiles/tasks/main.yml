@@ -6,14 +6,6 @@
   become: true
   when: ansible_os_family == "Debian"
 
-- name: Ensure Git is installed (Arch/Archcraft)
-  community.general.pacman:
-    name: git
-    state: present
-    update_cache: yes
-  become: true
-  when: ansible_os_family == "Archlinux"
-
 - name: Clone or update bash aliases repository
   ansible.builtin.git:
     repo: https://github.com/jcnichols22/dotfiles.git
