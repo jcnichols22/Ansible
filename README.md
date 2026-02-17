@@ -15,9 +15,10 @@ Ansible/
 ├── files/
 │   ├── how_to_run_playbooks.txt
 ├── inventory/
-│   ├── hosts.ini
-│   └── group_vars/
-│       └── all.yml         # Global/shared variables (e.g., users)
+│   └── prod/
+│       ├── hosts.ini
+│       └── group_vars/
+│           └── all.yml     # Global/shared variables (e.g., users)
 ├── playbooks/
 │   ├── onboard_all.yml
 │   ├── onboard_lxc.yml
@@ -45,7 +46,7 @@ Ansible/
 
 ## Variable Management
 
-- **Global/shared variables** (such as the `users` list) are defined in `inventory/group_vars/all.yml` and are automatically available to all hosts and playbooks.
+- **Global/shared variables** (such as the `users` list) are defined in `inventory/prod/group_vars/all.yml` and are automatically available to all hosts and playbooks.
 - **Role-specific defaults** should be placed in each role’s `defaults/main.yml` (e.g., `roles/base/defaults/main.yml`). These are only available to that role.
 
 ## Running Playbooks
