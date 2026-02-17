@@ -1,5 +1,0 @@
-- name: Install required packages
-  ansible.builtin.apt:
-    name: "{{ required_packages }}"
-    state: present
-  tags: packages

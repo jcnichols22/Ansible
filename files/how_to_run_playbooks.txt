@@ -11,25 +11,13 @@ Assuming you are in the root of your Ansible project. Your ansible.cfg is alread
 2. onboard_lxc.yml
    ansible-playbook playbooks/onboard_lxc.yml
 
-3. onboard_media.yml
-   ansible-playbook playbooks/onboard_media.yml
-
-4. onboard_workstations.yml
-   ansible-playbook playbooks/onboard_workstations.yml
-
-5. run_setup_ssh.yml
-   ansible-playbook playbooks/run_setup_ssh.yml
-
-6. update_bash.yml
-   ansible-playbook playbooks/update_bash.yml
-
-7. update_docker_media.yml
+3. update_docker_media.yml
    ansible-playbook playbooks/update_docker_media.yml
 
-8. update_lxc_containers.yml
+4. update_lxc_containers.yml
    ansible-playbook playbooks/update_lxc_containers.yml
 
-9. update_servers.yml
+5. update_servers.yml
    ansible-playbook playbooks/update_servers.yml
 
 If you use a different inventory or need extra variables, adjust the command accordingly.

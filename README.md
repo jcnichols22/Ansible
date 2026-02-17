@@ -14,7 +14,6 @@ Ansible/
 ├── README.md
 ├── files/
 │   ├── how_to_run_playbooks.txt
-│   ├── sudoer_ansible
 ├── inventory/
 │   ├── hosts.ini
 │   └── group_vars/
@@ -22,10 +21,6 @@ Ansible/
 ├── playbooks/
 │   ├── onboard_all.yml
 │   ├── onboard_lxc.yml
-│   ├── onboard_media.yml
-│   ├── onboard_workstations.yml
-│   ├── run_setup_ssh.yml
-│   ├── update_bash.yml
 │   ├── update_docker_media.yml
 │   ├── update_lxc_containers.yml
 │   └── update_servers.yml
@@ -38,10 +33,6 @@ Ansible/
 │   │   ├── defaults/
 │   │   └── tasks/
 │   ├── media_server/
-│   │   ├── defaults/
-│   │   ├── meta/
-│   │   └── tasks/
-│   ├── proxmox_servers/
 │   │   ├── defaults/
 │   │   ├── meta/
 │   │   └── tasks/
@@ -69,10 +60,6 @@ This will prompt for the sudo password (`-K`) and execute the onboarding playboo
 ## Playbooks Overview
 **onboard_all.yml**: Complete onboarding for all hosts (users, SSH, media servers, workstations)
 **onboard_lxc.yml**: Onboard LXC containers with users and SSH keys
-**onboard_media.yml**: Playbook specifically for setting up the media server
-**onboard_workstations.yml**: Playbook for configuring workstations
-**run_setup_ssh.yml**: Playbook to set up SSH keys
-**update_bash.yml**: Playbook to update bash configurations and install necessary packages
 **update_docker_media.yml**: Playbook to update Docker containers on the media server
 **update_lxc_containers.yml**: Playbook to update LXC containers
 **update_servers.yml**: Playbook to update server configurations and packages
@@ -80,7 +67,6 @@ This will prompt for the sudo password (`-K`) and execute the onboarding playboo
 **base**: Contains common tasks and configurations shared across all servers
 **dotfiles**: Manages user-specific dotfiles and configurations
 **media_server**: Configures the media server with Docker containers for media management
-**proxmox_servers**: Sets up the Proxmox VE cluster and manages virtual machines and containers
 **workstations**: Configures workstations with necessary software and settings
 
 
