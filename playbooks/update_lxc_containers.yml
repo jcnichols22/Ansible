@@ -1,7 +1,7 @@
 ---
 # This playbook updates all packages on the specified LXC containers.
 - name: Update LXC containers
-  hosts: lxc_containers
+  hosts: lxc_containers:!exitnode
   ignore_unreachable: true
   become: false
   vars:
