@@ -90,7 +90,11 @@
                 continue
 
             for guest in guests:
-                vmid = int(guest.get("vmid"))
+                vmid_raw = guest.get("vmid")
+                if vmid_raw is None:
+                    continue
+
+                vmid = int(vmid_raw)
                 name = (guest.get("name") or "").strip()
                 ip = ""
 
@@ -178,8 +182,8 @@
         hosts_without_dynamic: >-
           {{
             current_hosts_text
-            | regex_replace('(?ms)^\\[lxc_containers\\]\\n.*?(?=^\\[|\\Z)', '')
-            | regex_replace('(?ms)^\\[vms\\]\\n.*?(?=^\\[|\\Z)', '')
+            | regex_replace('(?ms)^\\[lxc_containers\\]\\s*\\n.*?(?=^\\[|\\Z)', '')
+            | regex_replace('(?ms)^\\[vms\\]\\s*\\n.*?(?=^\\[|\\Z)', '')
             | regex_replace('\\n{3,}', '\\n\\n')
             | trim
           }}
