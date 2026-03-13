@@ -20,13 +20,17 @@ Assuming you are in the root of your Ansible project. Your ansible.cfg is alread
 3. update_docker_media.yml
    ansible-playbook playbooks/update_docker_media.yml
 
-4. update_lxc_containers.yml
+4. remediate_lxc_apt_repos.yml
+   ansible-playbook playbooks/remediate_lxc_apt_repos.yml
+   # Detects stale APT repos (no Release file), disables matching deb lines, and re-checks apt health.
+
+5. update_lxc_containers.yml
    ansible-playbook playbooks/update_lxc_containers.yml
 
-5. update_servers.yml
+6. update_servers.yml
    ansible-playbook playbooks/update_servers.yml
 
-6. sync_proxmox_inventory.yml
+7. sync_proxmox_inventory.yml
    ansible-playbook playbooks/sync_proxmox_inventory.yml -K
    # Discovers current LXC/VM guests on Proxmox nodes and refreshes inventory/prod/hosts.ini.
 

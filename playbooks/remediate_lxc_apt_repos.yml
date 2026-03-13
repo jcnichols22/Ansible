@@ -1,0 +1,81 @@
+---
+- name: Remediate broken APT repositories on LXC containers
+  hosts: lxc_containers
+  become: false
+  ignore_unreachable: true
+  gather_facts: false
+
+  tasks:
+    - name: Probe apt update output for repository errors
+      ansible.builtin.command: apt-get update
+      register: apt_probe
+      changed_when: false
+      failed_when: false
+
+    - name: Extract stale repository URLs from apt output
+      ansible.builtin.set_fact:
+        stale_repo_urls: >-
+          {{
+            (
+              apt_probe.stderr
+              | regex_findall("E:The repository '([^ ]+) [^']*' no longer has a Release file\\.")
+            )
+            | unique
+            | list
+          }}
+
+    - name: Report stale repositories discovered
+      ansible.builtin.debug:
+        msg: "Stale repositories on {{ inventory_hostname }}: {{ stale_repo_urls | join(', ') }}"
+      when: stale_repo_urls | length > 0
+
+    - name: Disable stale repositories in apt .list files
+      ansible.builtin.shell: |
+        set -euo pipefail
+        changed=0
+        ts="$(date +%Y%m%d%H%M%S)"
+
+        for repo_url in {{ stale_repo_urls | map('quote') | join(' ') }}; do
+          escaped="$(printf '%s' "$repo_url" | sed 's|[.[\\*^$()+?{}|]|\\\\&|g')"
+
+          while IFS= read -r file; do
+            [ -f "$file" ] || continue
+
+            if grep -Eq "^[[:space:]]*deb[[:space:]].*${escaped}" "$file"; then
+              cp -a "$file" "${file}.bak_ansible_${ts}"
+              sed -i -E "s|^[[:space:]]*deb([[:space:]].*${escaped}.*)$|# disabled-by-ansible stale-repo deb\\1|" "$file"
+              changed=1
+              echo "Disabled stale repo $repo_url in $file"
+            fi
+          done < <(find /etc/apt -maxdepth 2 -type f \( -name '*.list' -o -name 'sources.list' \))
+        done
+
+        if [ "$changed" -eq 1 ]; then
+          echo "REPO_CHANGES_APPLIED"
+        fi
+      args:
+        executable: /bin/bash
+      register: repo_disable_result
+      changed_when: "'REPO_CHANGES_APPLIED' in repo_disable_result.stdout"
+      when: stale_repo_urls | length > 0
+
+    - name: Re-run apt update after remediation
+      ansible.builtin.command: apt-get update
+      register: apt_after_remediation
+      changed_when: false
+      failed_when: false
+      when: stale_repo_urls | length > 0
+
+    - name: Report remaining apt errors after remediation
+      ansible.builtin.debug:
+        msg:
+          - "APT still failing on {{ inventory_hostname }} after remediation"
+          - "{{ (apt_after_remediation.stderr_lines | default([]))[-10:] | join(' | ') }}"
+      when:
+        - stale_repo_urls | length > 0
+        - apt_after_remediation.rc != 0
+
+    - name: Confirm apt repository health when no stale repos are found
+      ansible.builtin.debug:
+        msg: "No stale Release-file repositories detected on {{ inventory_hostname }}."
+      when: stale_repo_urls | length == 0
