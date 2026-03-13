@@ -1,75 +1,4 @@
----
-- name: Build LXC target map from inventory comments
-  hosts: localhost
-  gather_facts: false
-  vars:
-    hosts_inventory_path: "{{ playbook_dir }}/../inventory/prod/hosts.ini"
-
-  tasks:
-    - name: Read inventory file
-      ansible.builtin.slurp:
-        src: "{{ hosts_inventory_path }}"
-      register: inventory_file
-
-    - name: Parse LXC node/vmid mappings from [lxc_containers]
-      ansible.builtin.shell: |
-        python3 - <<'PY'
-        import json
-        import re
-        import sys
-
-        text = sys.stdin.read()
-        in_lxc = False
-        targets = []
-
-        for raw in text.splitlines():
-            line = raw.strip()
-
-            if not line:
-                continue
-
-            if line.startswith('[') and line.endswith(']'):
-                in_lxc = line.lower() == '[lxc_containers]'
-                continue
-
-            if not in_lxc or line.startswith('#'):
-                continue
-
-            m = re.match(
-                r'^(?P<name>\S+)\s+ansible_host=(?P<ip>\S+)\s+#\s+.*\((?P<node>[^:()\s]+):(?P<vmid>\d+)\)\s*$',
-                line,
-            )
-            if not m:
-                continue
-
-            targets.append(
-                {
-                    'name': m.group('name'),
-                    'ip': m.group('ip'),
-                    'node': m.group('node'),
-                    'vmid': int(m.group('vmid')),
-                }
-            )
-
-        print(json.dumps(targets))
-        PY
-      args:
-        executable: /bin/bash
-        stdin: "{{ inventory_file.content | b64decode }}"
-      register: parsed_targets
-      changed_when: false
-
-    - name: Store parsed LXC targets
-      ansible.builtin.set_fact:
-        lxc_bootstrap_targets: "{{ parsed_targets.stdout | from_json }}"
-
-    - name: Assert at least one LXC target was parsed
-      ansible.builtin.assert:
-        that:
-          - lxc_bootstrap_targets | length > 0
-        fail_msg: "No LXC targets with (node:vmid) metadata were parsed from inventory/prod/hosts.ini."
-
-- name: Seed ansible public key into LXC root accounts via Proxmox
+- name: Seed ansible public key into all LXC root accounts via Proxmox
   hosts: proxmox_nodes
   gather_facts: false
   become: true
@@ -77,23 +6,20 @@
     ansible_pubkey: "{{ lookup('file', lookup('env', 'HOME') + '/.ssh/ansible.pub') | trim }}"
 
   tasks:
-    - name: Get Proxmox short hostname
-      ansible.builtin.command: hostname -s
-      register: proxmox_shortname
+    - name: Discover local LXC VMIDs on this Proxmox node
+      ansible.builtin.shell: pct list | awk 'NR>1 {print $1}'
+      args:
+        executable: /bin/bash
+      register: local_lxc_vmids
       changed_when: false
 
-    - name: Build per-node LXC bootstrap list
+    - name: Build cleaned local LXC VMID list
       ansible.builtin.set_fact:
-        node_lxc_targets: >-
-          {{
-            hostvars['localhost'].lxc_bootstrap_targets
-            | selectattr('node', 'equalto', proxmox_shortname.stdout | trim)
-            | list
-          }}
+        node_lxc_vmids: "{{ local_lxc_vmids.stdout_lines | map('trim') | reject('equalto', '') | list }}"
 
-    - name: Ensure root SSH key exists in each LXC
+    - name: Ensure root SSH key exists in each local LXC
       ansible.builtin.shell: |
-        pct exec {{ item.vmid }} -- sh -lc "
+        pct exec {{ item }} -- sh -lc "
           install -d -m 700 /root/.ssh &&
           touch /root/.ssh/authorized_keys &&
           chmod 600 /root/.ssh/authorized_keys &&
@@ -101,7 +27,12 @@
         "
       args:
         executable: /bin/bash
-      loop: "{{ node_lxc_targets }}"
+      loop: "{{ node_lxc_vmids }}"
       loop_control:
-        label: "{{ item.name }} ({{ item.vmid }})"
-      when: node_lxc_targets | length > 0
+        label: "vmid {{ item }}"
+      when: node_lxc_vmids | length > 0
+
+    - name: Report when no LXC containers are present on node
+      ansible.builtin.debug:
+        msg: "No local LXC containers detected on this Proxmox node."
+      when: node_lxc_vmids | length == 0
