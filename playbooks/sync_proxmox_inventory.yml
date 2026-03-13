@@ -1,6 +1,6 @@
 ---
 - name: Discover LXC containers and VMs on Proxmox nodes
-  hosts: proxmox_nodes
+  hosts: proxmox_nodes:proxmox
   gather_facts: false
   become: true
   ignore_unreachable: true
@@ -142,8 +142,15 @@
   gather_facts: false
   vars:
     hosts_inventory_path: "{{ playbook_dir }}/../inventory/prod/hosts.ini"
+    proxmox_discovery_hosts: "{{ ((groups.get('proxmox_nodes', []) + groups.get('proxmox', [])) | unique) | list }}"
 
   tasks:
+    - name: Ensure at least one Proxmox inventory group exists
+      ansible.builtin.assert:
+        that:
+          - proxmox_discovery_hosts | length > 0
+        fail_msg: "No Proxmox hosts found. Define [proxmox_nodes] or [proxmox] in inventory/prod/hosts.ini."
+
     - name: Read current inventory file
       ansible.builtin.slurp:
         src: "{{ hosts_inventory_path }}"
@@ -152,7 +159,7 @@
     - name: Build aggregated guest list
       ansible.builtin.set_fact:
         current_hosts_text: "{{ current_inventory.content | b64decode }}"
-        all_proxmox_guests: "{{ groups['proxmox_nodes'] | map('extract', hostvars, 'proxmox_discovered_guests') | select('defined') | list | flatten }}"
+        all_proxmox_guests: "{{ proxmox_discovery_hosts | map('extract', hostvars, 'proxmox_discovered_guests') | select('defined') | list | flatten }}"
 
     - name: Split guests by type
       ansible.builtin.set_fact:
