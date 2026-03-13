@@ -13,9 +13,9 @@ Assuming you are in the root of your Ansible project. Your ansible.cfg is alread
    # Injects ~/.ssh/ansible.pub into root authorized_keys for LXC guests via Proxmox pct exec.
 
 2. onboard_lxc.yml
-   ansible-playbook playbooks/onboard_lxc.yml
-   # Uses root SSH for first-time bootstrap and cleans stale host keys in ~/.ssh/known_hosts.
-   # Do not use -K for this playbook.
+   ansible-playbook playbooks/onboard_lxc.yml -K
+   # Single-command LXC onboarding: cleans known_hosts, bootstraps root SSH keys via Proxmox, and remediates stale APT repos.
+   # If proxmox_nodes has passwordless sudo configured, -K is optional.
 
 3. update_docker_media.yml
    ansible-playbook playbooks/update_docker_media.yml

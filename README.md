@@ -59,10 +59,10 @@ ansible-playbook playbooks/onboard_all.yml -K
 
 This will prompt for the sudo password (`-K`) and execute the onboarding playbook. Adjust the playbook name as needed for your use case.
 
-For first-time LXC bootstrap, run without sudo prompt:
+For first-time LXC onboarding (includes SSH key bootstrap + stale APT repo remediation), run:
 
 ```bash
-ansible-playbook playbooks/onboard_lxc.yml
+ansible-playbook playbooks/onboard_lxc.yml -K
 ```
 
 ## Playbooks Overview
