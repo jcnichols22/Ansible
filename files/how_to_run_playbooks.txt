@@ -22,10 +22,12 @@ Assuming you are in the root of your Ansible project. Your ansible.cfg is alread
 
 4. remediate_lxc_apt_repos.yml
    ansible-playbook playbooks/remediate_lxc_apt_repos.yml
-   # Detects stale APT repos (no Release file), disables matching deb lines, and re-checks apt health.
+   # Optional manual cleanup pass. update_lxc_containers.yml now includes this remediation automatically.
 
 5. update_lxc_containers.yml
    ansible-playbook playbooks/update_lxc_containers.yml
+   # Includes automatic stale-repo remediation by default.
+   # Disable remediation with: ansible-playbook playbooks/update_lxc_containers.yml -e lxc_apt_auto_remediate=false
 
 6. update_servers.yml
    ansible-playbook playbooks/update_servers.yml

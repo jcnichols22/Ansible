@@ -4,9 +4,70 @@
   hosts: lxc_containers
   ignore_unreachable: true
   become: false
+  vars:
+    lxc_apt_auto_remediate: true
   # users variable now loaded automatically from group_vars/all.yml
 
   tasks:
+    - name: Probe apt update output for repository errors
+      ansible.builtin.command: apt-get update
+      register: apt_probe
+      changed_when: false
+      failed_when: false
+      when: lxc_apt_auto_remediate | bool
+
+    - name: Extract stale repository URLs from apt output
+      ansible.builtin.set_fact:
+        stale_repo_urls: >-
+          {{
+            (
+              apt_probe.stderr
+              | regex_findall("E:The repository '([^ ]+) [^']*' no longer has a Release file\\.")
+            )
+            | unique
+            | list
+          }}
+      when: lxc_apt_auto_remediate | bool
+
+    - name: Disable stale repositories in apt .list files
+      ansible.builtin.shell: |
+        set -euo pipefail
+        changed=0
+        ts="$(date +%Y%m%d%H%M%S)"
+
+        for repo_url in {{ stale_repo_urls | default([]) | map('quote') | join(' ') }}; do
+          escaped="$(printf '%s' "$repo_url" | sed 's|[.[\\*^$()+?{}|]|\\\\&|g')"
+
+          while IFS= read -r file; do
+            [ -f "$file" ] || continue
+
+            if grep -Eq "^[[:space:]]*deb[[:space:]].*${escaped}" "$file"; then
+              cp -a "$file" "${file}.bak_ansible_${ts}"
+              sed -i -E "s|^[[:space:]]*deb([[:space:]].*${escaped}.*)$|# disabled-by-ansible stale-repo deb\\1|" "$file"
+              changed=1
+              echo "Disabled stale repo $repo_url in $file"
+            fi
+          done < <(find /etc/apt -maxdepth 2 -type f \( -name '*.list' -o -name 'sources.list' \))
+        done
+
+        if [ "$changed" -eq 1 ]; then
+          echo "REPO_CHANGES_APPLIED"
+        fi
+      args:
+        executable: /bin/bash
+      register: repo_disable_result
+      changed_when: "'REPO_CHANGES_APPLIED' in repo_disable_result.stdout"
+      when:
+        - lxc_apt_auto_remediate | bool
+        - stale_repo_urls | default([]) | length > 0
+
+    - name: Report stale repos remediated
+      ansible.builtin.debug:
+        msg: "Disabled stale repositories on {{ inventory_hostname }}: {{ stale_repo_urls | join(', ') }}"
+      when:
+        - lxc_apt_auto_remediate | bool
+        - stale_repo_urls | default([]) | length > 0
+
     - name: Update package cache
       ansible.builtin.apt:
         update_cache: true
