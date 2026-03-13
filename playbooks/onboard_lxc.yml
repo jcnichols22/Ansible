@@ -1,8 +1,24 @@
 ---
-# Onboard LXC containers with users and SSH keys
+# Remove stale local known_hosts entries before connecting.
+- name: Prepare SSH known_hosts for LXC containers
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  tasks:
+    - name: Remove stale known_hosts entries for each LXC container IP
+      ansible.builtin.known_hosts:
+        path: "{{ lookup('env', 'HOME') }}/.ssh/known_hosts"
+        name: "{{ hostvars[item].ansible_host | default(item) }}"
+        state: absent
+      loop: "{{ groups['lxc_containers'] | default([]) }}"
+
+# Onboard LXC containers with users and SSH keys.
 - name: Onboard LXC containers
   hosts: lxc_containers
-  become: true
+  vars:
+    ansible_user: root
+  become: false
   gather_facts: true
   # users variable now loaded automatically from group_vars/all.yml
   roles:

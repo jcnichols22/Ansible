@@ -10,6 +10,8 @@ Assuming you are in the root of your Ansible project. Your ansible.cfg is alread
 
 2. onboard_lxc.yml
    ansible-playbook playbooks/onboard_lxc.yml
+   # Uses root SSH for first-time bootstrap and cleans stale host keys in ~/.ssh/known_hosts.
+   # Do not use -K for this playbook.
 
 3. update_docker_media.yml
    ansible-playbook playbooks/update_docker_media.yml

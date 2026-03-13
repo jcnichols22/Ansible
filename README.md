@@ -56,15 +56,25 @@ To run a playbook, use:
 ```bash
 ansible-playbook playbooks/onboard_all.yml -K
 ```
+
 This will prompt for the sudo password (`-K`) and execute the onboarding playbook. Adjust the playbook name as needed for your use case.
 
+For first-time LXC bootstrap, run without sudo prompt:
+
+```bash
+ansible-playbook playbooks/onboard_lxc.yml
+```
+
 ## Playbooks Overview
+
 **onboard_all.yml**: Complete onboarding for all hosts (users, SSH, media servers, workstations)
 **onboard_lxc.yml**: Onboard LXC containers with users and SSH keys
 **update_docker_media.yml**: Playbook to update Docker containers on the media server
 **update_lxc_containers.yml**: Playbook to update LXC containers
 **update_servers.yml**: Playbook to update server configurations and packages
+
 ## Roles Overview
+
 **base**: Contains common tasks and configurations shared across all servers
 **dotfiles**: Manages user-specific dotfiles and configurations
 **media_server**: Configures the media server with Docker containers for media management
