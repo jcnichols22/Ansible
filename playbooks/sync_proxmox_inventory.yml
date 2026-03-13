@@ -1,6 +1,6 @@
 ---
 - name: Discover LXC containers and VMs on Proxmox nodes
-  hosts: proxmox_nodes:proxmox
+  hosts: all
   gather_facts: false
   become: true
   ignore_unreachable: true
@@ -8,6 +8,12 @@
     ansible_user: ansible
 
   tasks:
+    - name: Detect Proxmox host by pvesh command
+      ansible.builtin.command: command -v pvesh
+      register: pvesh_check
+      changed_when: false
+      failed_when: false
+
     - name: Discover guests with hostname and IP from each Proxmox node
       ansible.builtin.shell: |
         python3 - <<'PY'
@@ -124,11 +130,13 @@
         executable: /bin/bash
       register: proxmox_guest_discovery
       changed_when: false
+      when: pvesh_check.rc == 0
 
     - name: Store discovered guests for aggregation
       ansible.builtin.set_fact:
         proxmox_discovered_guests: "{{ proxmox_guest_discovery.stdout | from_json }}"
       when:
+        - pvesh_check.rc == 0
         - proxmox_guest_discovery is defined
         - proxmox_guest_discovery.stdout is defined
 
@@ -142,14 +150,14 @@
   gather_facts: false
   vars:
     hosts_inventory_path: "{{ playbook_dir }}/../inventory/prod/hosts.ini"
-    proxmox_discovery_hosts: "{{ ((groups.get('proxmox_nodes', []) + groups.get('proxmox', [])) | unique) | list }}"
+    proxmox_discovery_hosts: "{{ groups.get('all', []) | map('extract', hostvars) | selectattr('pvesh_check', 'defined') | selectattr('pvesh_check.rc', 'equalto', 0) | map(attribute='inventory_hostname') | list }}"
 
   tasks:
-    - name: Ensure at least one Proxmox inventory group exists
+    - name: Ensure at least one Proxmox host was detected
       ansible.builtin.assert:
         that:
           - proxmox_discovery_hosts | length > 0
-        fail_msg: "No Proxmox hosts found. Define [proxmox_nodes] or [proxmox] in inventory/prod/hosts.ini."
+        fail_msg: "No Proxmox hosts detected. Ensure inventory is loaded (or run with -i inventory/prod/hosts.ini) and SSH access works."
 
     - name: Read current inventory file
       ansible.builtin.slurp:
