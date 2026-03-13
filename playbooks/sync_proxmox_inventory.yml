@@ -1,0 +1,198 @@
+---
+- name: Discover LXC containers and VMs on Proxmox nodes
+  hosts: proxmox_nodes
+  gather_facts: false
+  become: true
+  vars:
+    ansible_user: ansible
+
+  tasks:
+    - name: Discover guests with hostname and IP from each Proxmox node
+      ansible.builtin.shell: |
+        python3 - <<'PY'
+        import json
+        import re
+        import socket
+        import subprocess
+
+        def run(cmd):
+            return subprocess.run(cmd, capture_output=True, text=True)
+
+        def parse_first_ipv4(text):
+            for token in text.split():
+                if re.match(r"^\d+\.\d+\.\d+\.\d+$", token):
+                    if not token.startswith("127."):
+                        return token
+            return ""
+
+        def lxc_runtime_ip(vmid):
+            result = run(["pct", "exec", str(vmid), "--", "hostname", "-I"])
+            if result.returncode != 0:
+                return ""
+            return parse_first_ipv4(result.stdout.strip())
+
+        def parse_lxc_config(vmid):
+            result = run(["pct", "config", str(vmid)])
+            hostname = ""
+            ip = ""
+
+            if result.returncode != 0:
+                return hostname, ip
+
+            for line in result.stdout.splitlines():
+                if line.startswith("hostname:"):
+                    hostname = line.split(":", 1)[1].strip()
+                if line.startswith("net") and "ip=" in line:
+                    match = re.search(r"ip=([^,]+)", line)
+                    if match:
+                        candidate = match.group(1).strip()
+                        if candidate and candidate.lower() not in {"dhcp", "manual", "auto"}:
+                            ip = candidate.split("/")[0]
+                            break
+
+            if not ip:
+                ip = lxc_runtime_ip(vmid)
+
+            return hostname, ip
+
+        def qemu_runtime_ip(vmid):
+            result = run(["qm", "guest", "cmd", str(vmid), "network-get-interfaces"])
+            if result.returncode != 0:
+                return ""
+
+            try:
+                interfaces = json.loads(result.stdout)
+            except Exception:
+                return ""
+
+            for interface in interfaces:
+                name = interface.get("name", "")
+                if name.startswith("lo"):
+                    continue
+                for addr in interface.get("ip-addresses", []):
+                    if addr.get("ip-address-type") == "ipv4":
+                        ip = addr.get("ip-address", "")
+                        if ip and not ip.startswith("127."):
+                            return ip
+            return ""
+
+        node = socket.gethostname().split(".")[0]
+        discovered = []
+
+        for guest_type in ("lxc", "qemu"):
+            listing = run(["pvesh", "get", f"/nodes/{node}/{guest_type}", "--output-format", "json"])
+            if listing.returncode != 0:
+                continue
+
+            try:
+                guests = json.loads(listing.stdout)
+            except Exception:
+                continue
+
+            for guest in guests:
+                vmid = int(guest.get("vmid"))
+                name = (guest.get("name") or "").strip()
+                ip = ""
+
+                if guest_type == "lxc":
+                    cfg_name, cfg_ip = parse_lxc_config(vmid)
+                    if cfg_name:
+                        name = cfg_name
+                    ip = cfg_ip
+                else:
+                    ip = qemu_runtime_ip(vmid)
+
+                if not name:
+                    name = f"{guest_type}-{vmid}"
+
+                discovered.append({
+                    "type": "lxc" if guest_type == "lxc" else "vm",
+                    "vmid": vmid,
+                    "name": name,
+                    "ip": ip,
+                    "node": node,
+                })
+
+        print(json.dumps(discovered))
+        PY
+      args:
+        executable: /bin/bash
+      register: proxmox_guest_discovery
+      changed_when: false
+
+    - name: Store discovered guests for aggregation
+      ansible.builtin.set_fact:
+        proxmox_discovered_guests: "{{ proxmox_guest_discovery.stdout | from_json }}"
+
+- name: Update inventory hosts file from discovered Proxmox guests
+  hosts: localhost
+  gather_facts: false
+  vars:
+    hosts_inventory_path: inventory/prod/hosts.ini
+
+  tasks:
+    - name: Read current inventory file
+      ansible.builtin.slurp:
+        src: "{{ hosts_inventory_path }}"
+      register: current_inventory
+
+    - name: Build aggregated guest list
+      ansible.builtin.set_fact:
+        current_hosts_text: "{{ current_inventory.content | b64decode }}"
+        all_proxmox_guests: "{{ groups['proxmox_nodes'] | map('extract', hostvars, 'proxmox_discovered_guests') | select('defined') | list | flatten }}"
+
+    - name: Split guests by type
+      ansible.builtin.set_fact:
+        lxc_guests: "{{ all_proxmox_guests | selectattr('type', 'equalto', 'lxc') | sort(attribute='name') | list }}"
+        vm_guests: "{{ all_proxmox_guests | selectattr('type', 'equalto', 'vm') | sort(attribute='name') | list }}"
+
+    - name: Build rendered dynamic inventory sections
+      ansible.builtin.set_fact:
+        dynamic_sections: |
+          [lxc_containers]
+          {% for guest in lxc_guests %}
+          {% set inv_name = guest.name | lower | regex_replace('[^a-z0-9_]+', '_') | regex_replace('^_+|_+$', '') %}
+          {% if guest.ip | length > 0 %}
+          {{ (inv_name if inv_name | length > 0 else 'lxc_' ~ guest.vmid) }} ansible_host={{ guest.ip }} # {{ guest.name }} ({{ guest.node }}:{{ guest.vmid }})
+          {% else %}
+          # {{ guest.name }} ({{ guest.node }}:{{ guest.vmid }}) no-ip-detected
+          {% endif %}
+          {% else %}
+          # none discovered
+          {% endfor %}
+
+          [vms]
+          {% for guest in vm_guests %}
+          {% set inv_name = guest.name | lower | regex_replace('[^a-z0-9_]+', '_') | regex_replace('^_+|_+$', '') %}
+          {% if guest.ip | length > 0 %}
+          {{ (inv_name if inv_name | length > 0 else 'vm_' ~ guest.vmid) }} ansible_host={{ guest.ip }} # {{ guest.name }} ({{ guest.node }}:{{ guest.vmid }})
+          {% else %}
+          # {{ guest.name }} ({{ guest.node }}:{{ guest.vmid }}) no-ip-detected
+          {% endif %}
+          {% else %}
+          # none discovered
+          {% endfor %}
+
+    - name: Remove previously generated guest sections
+      ansible.builtin.set_fact:
+        hosts_without_dynamic: >-
+          {{
+            current_hosts_text
+            | regex_replace('(?ms)^\\[lxc_containers\\]\\n.*?(?=^\\[|\\Z)', '')
+            | regex_replace('(?ms)^\\[vms\\]\\n.*?(?=^\\[|\\Z)', '')
+            | regex_replace('\\n{3,}', '\\n\\n')
+            | trim
+          }}
+
+    - name: Build final hosts.ini content
+      ansible.builtin.set_fact:
+        final_hosts_text: |
+          {{ hosts_without_dynamic }}
+
+          {{ dynamic_sections | trim }}
+
+    - name: Write refreshed inventory file
+      ansible.builtin.copy:
+        dest: "{{ hosts_inventory_path }}"
+        content: "{{ final_hosts_text | trim }}\n"
+        mode: '0644'
