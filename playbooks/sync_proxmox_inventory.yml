@@ -202,20 +202,20 @@
 
         text = sys.stdin.read()
         out = []
-      skipping_managed = False
+        skipping_managed = False
         skipping = False
 
         for line in text.splitlines():
             section = line.strip().lower()
 
-        if section == "# begin auto_managed_guests":
-          skipping_managed = True
-          continue
+            if section == "# begin auto_managed_guests":
+                skipping_managed = True
+                continue
 
-        if skipping_managed:
-          if section == "# end auto_managed_guests":
-            skipping_managed = False
-          continue
+            if skipping_managed:
+                if section == "# end auto_managed_guests":
+                    skipping_managed = False
+                continue
 
             if section in ("[lxc_containers]", "[vms]"):
                 skipping = True
