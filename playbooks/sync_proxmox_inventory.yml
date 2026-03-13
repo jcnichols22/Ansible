@@ -3,6 +3,7 @@
   hosts: proxmox_nodes
   gather_facts: false
   become: true
+  ignore_unreachable: true
   vars:
     ansible_user: ansible
 
@@ -132,7 +133,7 @@
   hosts: localhost
   gather_facts: false
   vars:
-    hosts_inventory_path: inventory/prod/hosts.ini
+    hosts_inventory_path: "{{ playbook_dir }}/../inventory/prod/hosts.ini"
 
   tasks:
     - name: Read current inventory file
