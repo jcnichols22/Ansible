@@ -2,8 +2,6 @@
 # Onboard LXC containers with users and SSH keys
 - name: Onboard LXC containers
   hosts: lxc_containers
-  vars:
-    ansible_user: root
   become: true
   gather_facts: true
   # users variable now loaded automatically from group_vars/all.yml
