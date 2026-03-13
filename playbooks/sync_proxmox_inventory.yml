@@ -211,9 +211,9 @@
         skipping = False
 
         for line in text.splitlines():
-            section = line.strip()
+          section = line.strip().lower()
 
-            if section in ("[lxc_containers]", "[vms]"):
+          if section in ("[lxc_containers]", "[vms]"):
                 skipping = True
                 continue
 
@@ -246,4 +246,4 @@
       ansible.builtin.copy:
         dest: "{{ hosts_inventory_path }}"
         content: "{{ final_hosts_text | trim }}\n"
-        mode: '0644'
+        mode: "0644"
