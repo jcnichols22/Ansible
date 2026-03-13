@@ -8,6 +8,10 @@ Assuming you are in the root of your Ansible project. Your ansible.cfg is alread
 1. onboard_all.yml
    ansible-playbook playbooks/onboard_all.yml
 
+0. bootstrap_lxc_ssh_keys.yml (run once when LXC root SSH key auth is missing)
+   ansible-playbook playbooks/bootstrap_lxc_ssh_keys.yml -K
+   # Injects ~/.ssh/ansible.pub into root authorized_keys for LXC guests via Proxmox pct exec.
+
 2. onboard_lxc.yml
    ansible-playbook playbooks/onboard_lxc.yml
    # Uses root SSH for first-time bootstrap and cleans stale host keys in ~/.ssh/known_hosts.
