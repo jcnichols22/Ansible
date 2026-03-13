@@ -159,6 +159,10 @@
         current_hosts_text: "{{ current_inventory.content | b64decode }}"
         all_proxmox_guests: "{{ proxmox_discovery_hosts | map('extract', hostvars, 'proxmox_discovered_guests') | select('defined') | list | flatten }}"
 
+    - name: Capture proxmox_nodes section for preservation
+      ansible.builtin.set_fact:
+        proxmox_nodes_section: "{{ current_hosts_text | regex_search('(?ms)^\\[proxmox_nodes\\]\\s*\\n.*?(?=^\\[|\\Z)') | default('') }}"
+
     - name: Split guests by type
       ansible.builtin.set_fact:
         lxc_guests: "{{ all_proxmox_guests | selectattr('type', 'equalto', 'lxc') | sort(attribute='name') | list }}"
@@ -198,10 +202,20 @@
 
         text = sys.stdin.read()
         out = []
+      skipping_managed = False
         skipping = False
 
         for line in text.splitlines():
             section = line.strip().lower()
+
+        if section == "# begin auto_managed_guests":
+          skipping_managed = True
+          continue
+
+        if skipping_managed:
+          if section == "# end auto_managed_guests":
+            skipping_managed = False
+          continue
 
             if section in ("[lxc_containers]", "[vms]"):
                 skipping = True
@@ -228,9 +242,19 @@
     - name: Build final hosts.ini content
       ansible.builtin.set_fact:
         final_hosts_text: |
-          {{ hosts_without_dynamic }}
+          {% set base = hosts_without_dynamic | trim %}
+          {% set prox = proxmox_nodes_section | trim %}
+          {% if prox | length > 0 and '[proxmox_nodes]' not in base %}
+          {{ prox }}
 
+          {{ base }}
+          {% else %}
+          {{ base }}
+          {% endif %}
+
+          # BEGIN AUTO_MANAGED_GUESTS
           {{ dynamic_sections | trim }}
+          # END AUTO_MANAGED_GUESTS
 
     - name: Write refreshed inventory file
       ansible.builtin.copy:
