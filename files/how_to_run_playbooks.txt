@@ -20,4 +20,8 @@ Assuming you are in the root of your Ansible project. Your ansible.cfg is alread
 5. update_servers.yml
    ansible-playbook playbooks/update_servers.yml
 
+6. sync_proxmox_inventory.yml
+   ansible-playbook playbooks/sync_proxmox_inventory.yml -K
+   # Discovers current LXC/VM guests on Proxmox nodes and refreshes inventory/prod/hosts.ini.
+
 If you use a different inventory or need extra variables, adjust the command accordingly.
