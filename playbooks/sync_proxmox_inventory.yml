@@ -128,6 +128,14 @@
     - name: Store discovered guests for aggregation
       ansible.builtin.set_fact:
         proxmox_discovered_guests: "{{ proxmox_guest_discovery.stdout | from_json }}"
+      when:
+        - proxmox_guest_discovery is defined
+        - proxmox_guest_discovery.stdout is defined
+
+    - name: Ensure discovered list exists for every host
+      ansible.builtin.set_fact:
+        proxmox_discovered_guests: []
+      when: proxmox_discovered_guests is not defined
 
 - name: Update inventory hosts file from discovered Proxmox guests
   hosts: localhost
@@ -179,15 +187,38 @@
           {% endfor %}
 
     - name: Remove previously generated guest sections
+      ansible.builtin.shell: |
+        python3 - <<'PY'
+        import sys
+
+        text = sys.stdin.read()
+        out = []
+        skipping = False
+
+        for line in text.splitlines():
+            section = line.strip()
+
+            if section in ("[lxc_containers]", "[vms]"):
+                skipping = True
+                continue
+
+            if skipping and section.startswith("[") and section.endswith("]"):
+                skipping = False
+
+            if not skipping:
+                out.append(line)
+
+        print("\n".join(out).strip())
+        PY
+      args:
+        executable: /bin/bash
+        stdin: "{{ current_hosts_text }}"
+      register: stripped_inventory
+      changed_when: false
+
+    - name: Set cleaned inventory content
       ansible.builtin.set_fact:
-        hosts_without_dynamic: >-
-          {{
-            current_hosts_text
-            | regex_replace('(?ms)^\\[lxc_containers\\]\\s*\\n.*?(?=^\\[|\\Z)', '')
-            | regex_replace('(?ms)^\\[vms\\]\\s*\\n.*?(?=^\\[|\\Z)', '')
-            | regex_replace('\\n{3,}', '\\n\\n')
-            | trim
-          }}
+        hosts_without_dynamic: "{{ stripped_inventory.stdout | trim }}"
 
     - name: Build final hosts.ini content
       ansible.builtin.set_fact:
