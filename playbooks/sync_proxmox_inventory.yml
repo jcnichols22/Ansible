@@ -1,19 +1,11 @@
 ---
 - name: Discover LXC containers and VMs on Proxmox nodes
-  hosts: all
+  hosts: proxmox_nodes
   gather_facts: false
   become: true
   ignore_unreachable: true
-  vars:
-    ansible_user: ansible
 
   tasks:
-    - name: Detect Proxmox host by pvesh command
-      ansible.builtin.command: command -v pvesh
-      register: pvesh_check
-      changed_when: false
-      failed_when: false
-
     - name: Discover guests with hostname and IP from each Proxmox node
       ansible.builtin.shell: |
         python3 - <<'PY'
@@ -130,13 +122,11 @@
         executable: /bin/bash
       register: proxmox_guest_discovery
       changed_when: false
-      when: pvesh_check.rc == 0
 
     - name: Store discovered guests for aggregation
       ansible.builtin.set_fact:
         proxmox_discovered_guests: "{{ proxmox_guest_discovery.stdout | from_json }}"
       when:
-        - pvesh_check.rc == 0
         - proxmox_guest_discovery is defined
         - proxmox_guest_discovery.stdout is defined
 
@@ -150,14 +140,14 @@
   gather_facts: false
   vars:
     hosts_inventory_path: "{{ playbook_dir }}/../inventory/prod/hosts.ini"
-    proxmox_discovery_hosts: "{{ groups.get('all', []) | map('extract', hostvars) | selectattr('pvesh_check', 'defined') | selectattr('pvesh_check.rc', 'equalto', 0) | map(attribute='inventory_hostname') | list }}"
+    proxmox_discovery_hosts: "{{ groups.get('proxmox_nodes', []) | list }}"
 
   tasks:
-    - name: Ensure at least one Proxmox host was detected
+    - name: Ensure proxmox_nodes group exists
       ansible.builtin.assert:
         that:
           - proxmox_discovery_hosts | length > 0
-        fail_msg: "No Proxmox hosts detected. Ensure inventory is loaded (or run with -i inventory/prod/hosts.ini) and SSH access works."
+        fail_msg: "No hosts found in [proxmox_nodes]. Add Proxmox node entries to inventory/prod/hosts.ini."
 
     - name: Read current inventory file
       ansible.builtin.slurp:
@@ -211,9 +201,9 @@
         skipping = False
 
         for line in text.splitlines():
-          section = line.strip().lower()
+            section = line.strip().lower()
 
-          if section in ("[lxc_containers]", "[vms]"):
+            if section in ("[lxc_containers]", "[vms]"):
                 skipping = True
                 continue
 
