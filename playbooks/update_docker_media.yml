@@ -8,16 +8,13 @@
       - bazarr
       - sonarr
       - radarr
-      - lazylibrarian
-      - readarr
       - jellyfin
       - jellyseerr
       - qbittorrent
       - tdarr
       - tdarr-node
       - arm-rippers
-      - calibre
-      - calibre-web
+      - plex
   tasks:
     - name: Pull latest image for {{ item }}
       ansible.builtin.shell: docker compose pull {{ item }}
