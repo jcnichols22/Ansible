@@ -9,10 +9,9 @@
       - sonarr
       - radarr
       - jellyfin
-      - jellyseerr
+      - seerr
       - qbittorrent
       - tdarr
-      - tdarr-node
       - arm-rippers
       - plex
   tasks:
