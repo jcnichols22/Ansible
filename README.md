@@ -259,3 +259,9 @@ configured backend or rewrite target no longer matches the desired state.
 
 
 \n## [2026-04-13] Added openclaw_onboard Ansible role\n- Automated onboarding for the openclaw user, ops group, SSH key, and permissions.\n- Role location: roles/openclaw_onboard\n- To use: Add openclaw_onboard to your onboarding playbooks.\n
+
+## [2026-04-13] Added openclaw_onboard_machine.yml playbook
+- New playbook for onboarding single machines to openclaw automation, allowing gradual rollout and testing.
+- Location: playbooks/openclaw_onboard_machine.yml
+- Usage: ansible-playbook playbooks/openclaw_onboard_machine.yml -l <target_host> -K
+

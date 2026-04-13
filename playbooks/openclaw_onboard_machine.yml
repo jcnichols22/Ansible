@@ -1,0 +1,11 @@
+---
+# openclaw_onboard_machine.yml
+# Playbook to onboard a single machine to openclaw automation (user, ops group, SSH key)
+# Usage:
+#   ansible-playbook playbooks/openclaw_onboard_machine.yml -l <target_host> -K
+
+- hosts: all  # Limit with -l <host> for one machine at a time
+  become: true
+  roles:
+    - role: openclaw_onboard
+
