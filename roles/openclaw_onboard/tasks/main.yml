@@ -1,0 +1,40 @@
+---
+- name: Ensure group exists
+  ansible.builtin.group:
+    name: "{{ openclaw_group }}"
+    state: present
+
+- name: Ensure openclaw user exists
+  ansible.builtin.user:
+    name: "{{ openclaw_user }}"
+    group: "{{ openclaw_group }}"
+    groups: "{{ openclaw_group }}"
+    append: yes
+    shell: /bin/bash
+    state: present
+    create_home: yes
+
+- name: Create .ssh directory for openclaw
+  ansible.builtin.file:
+    path: "/home/{{ openclaw_user }}/.ssh"
+    state: directory
+    owner: "{{ openclaw_user }}"
+    group: "{{ openclaw_group }}"
+    mode: 0700
+
+- name: Install openclaw SSH public key
+  ansible.builtin.copy:
+    dest: "/home/{{ openclaw_user }}/.ssh/authorized_keys"
+    content: "{{ openclaw_ssh_pubkey }}"
+    owner: "{{ openclaw_user }}"
+    group: "{{ openclaw_group }}"
+    mode: 0600
+
+- name: Ensure extra directories have group write (optional)
+  ansible.builtin.file:
+    path: "{{ item }}"
+    group: "{{ openclaw_group }}"
+    mode: "2775"
+    recurse: yes
+  loop: "{{ openclaw_extra_dirs }}"
+  when: openclaw_extra_dirs | length > 0

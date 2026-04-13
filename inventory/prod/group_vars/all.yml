@@ -6,3 +6,55 @@ users:
     ssh_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICPM8xsQ9Y+s7d5cBCBDo8lleyOui7gttZqkoEP+6MNN ansible"
     sudo: true
     nopasswd: true
+
+kuma_url: "http://192.168.0.126:3001"
+kuma_username: ""
+kuma_password: ""
+
+kuma_services:
+  - name: "Media Server HTTP"
+    type: "http"
+    url: "http://192.168.0.34"
+    interval: 60
+    maxretries: 3
+    retryInterval: 60
+
+netbox_auto_host_pattern: "all:!localhost"
+netbox_default_site: "Homelab"
+netbox_default_device_role: "Server"
+netbox_default_device_status: "active"
+netbox_default_manufacturer: "Generic"
+netbox_default_device_type: "Generic Server"
+netbox_mgmt_interface: "mgmt0"
+netbox_sync_dry_run: false
+netbox_sync_no_log: true
+
+omada_sync_venv_path: "{{ playbook_dir }}/../.venv/omada-netbox"
+omada_site_filter:
+  - "Home"
+omada_site_map:
+  Home: "Homelab"
+omada_role_map:
+  ap: "Wireless AP"
+  switch: "Switch"
+  gateway: "Router"
+omada_default_device_status: "active"
+omada_default_manufacturer: "TP-Link"
+omada_mgmt_interface: "mgmt0"
+omada_port_interface_prefix: "port"
+omada_include_site_in_name: true
+omada_link_report: true
+omada_sync_report_only: false
+omada_sync_dry_run: false
+omada_sync_no_log: true
+
+docker_service_sync_media_server_host: "192.168.0.34"
+docker_service_sync_media_server_user: "josh"
+docker_service_sync_compose_dir: "/home/{{ docker_service_sync_media_server_user }}/media"
+docker_service_sync_domain_suffix: "lan"
+docker_service_sync_rewrite_target: "192.168.0.107"
+docker_service_sync_backend_scheme: "http"
+docker_service_sync_venv_path: "{{ playbook_dir }}/../.venv/service-host-sync"
+docker_service_sync_no_log: true
+docker_service_sync_service_exclude: []
+docker_service_sync_service_overrides: {}

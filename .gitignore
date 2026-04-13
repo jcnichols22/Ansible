@@ -1,0 +1,6 @@
+inventory/prod/group_vars/kuma_secrets.local.yml
+inventory/prod/group_vars/netbox_secrets.local.yml
+inventory/prod/group_vars/omada_secrets.local.yml
+inventory/prod/group_vars/npm_secrets.local.yml
+inventory/prod/group_vars/adguard_secrets.local.yml
+.venv/

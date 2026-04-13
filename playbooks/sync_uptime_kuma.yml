@@ -1,0 +1,99 @@
+---
+- name: Sync service monitors to Uptime Kuma
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - ../inventory/prod/group_vars/all.yml
+  vars:
+    kuma_sync_venv_path: "{{ playbook_dir }}/../.venv/uptime-kuma"
+    kuma_sync_no_log: true
+    kuma_auto_host_pattern: "all:!localhost"
+    kuma_auto_type: ping
+    kuma_auto_interval: 60
+    kuma_auto_maxretries: 3
+    kuma_auto_retry_interval: 60
+
+  tasks:
+    - name: Load local Kuma secrets if present (git-ignored)
+      ansible.builtin.include_vars:
+        file: ../inventory/prod/group_vars/kuma_secrets.local.yml
+      ignore_errors: true
+
+    - name: Validate Kuma configuration is present
+      ansible.builtin.assert:
+        that:
+          - kuma_url is defined
+          - kuma_url | length > 0
+        fail_msg: >-
+          Define kuma_url in inventory/prod/group_vars/all.yml.
+
+    - name: Initialize auto-generated service list
+      ansible.builtin.set_fact:
+        kuma_auto_services: []
+
+    - name: Build auto-generated monitors from inventory groups
+      ansible.builtin.set_fact:
+        kuma_auto_services: "{{ kuma_auto_services + [ {
+          'name': item,
+          'type': kuma_auto_type,
+          'hostname': (hostvars[item].ansible_host | default(item)),
+          'interval': kuma_auto_interval,
+          'maxretries': kuma_auto_maxretries,
+          'retryInterval': kuma_auto_retry_interval
+        } ] }}"
+      loop: "{{ query('inventory_hostnames', kuma_auto_host_pattern) | unique }}"
+
+    - name: Combine explicit and auto-generated monitor definitions
+      ansible.builtin.set_fact:
+        kuma_services_effective: "{{ (kuma_services | default([])) + kuma_auto_services }}"
+
+    - name: Show monitor sync count
+      ansible.builtin.debug:
+        msg: "Syncing {{ kuma_services_effective | length }} monitor definitions to Uptime Kuma."
+
+    - name: Ensure Python tooling for venv is installed
+      ansible.builtin.apt:
+        name:
+          - python3-venv
+          - python3-pip
+        state: present
+        update_cache: true
+      become: true
+
+    - name: Ensure virtual environment exists for Kuma sync
+      ansible.builtin.command: python3 -m venv {{ kuma_sync_venv_path }}
+      args:
+        creates: "{{ kuma_sync_venv_path }}/bin/python"
+
+    - name: Ensure pip exists inside Kuma sync virtual environment
+      ansible.builtin.command: "{{ kuma_sync_venv_path }}/bin/python -m ensurepip --upgrade"
+      changed_when: false
+
+    - name: Install uptime-kuma-api dependency in venv
+      ansible.builtin.command: "{{ kuma_sync_venv_path }}/bin/python -m pip install --upgrade uptime-kuma-api"
+      register: kuma_pip_install
+      changed_when: >-
+        ('Successfully installed' in kuma_pip_install.stdout) or
+        ('Requirement already satisfied' not in kuma_pip_install.stdout)
+
+    - name: Sync monitors into Uptime Kuma
+      ansible.builtin.command:
+        cmd: >-
+          {{ kuma_sync_venv_path }}/bin/python
+          {{ playbook_dir }}/../scripts/sync_uptime_kuma.py
+          --server {{ kuma_url | quote }}
+      environment:
+        KUMA_SERVER: "{{ kuma_url }}"
+        KUMA_SERVICES_JSON: "{{ kuma_services_effective | to_json }}"
+        KUMA_API_KEY: "{{ kuma_api_key | default('') }}"
+        KUMA_USERNAME: "{{ kuma_username | default('') }}"
+        KUMA_PASSWORD: "{{ kuma_password | default('') }}"
+      register: kuma_sync_result
+      changed_when: >-
+        ('Created monitor:' in kuma_sync_result.stdout) or
+        ('Updated monitor:' in kuma_sync_result.stdout)
+      no_log: "{{ kuma_sync_no_log | bool }}"
+
+    - name: Show summarized sync result
+      ansible.builtin.debug:
+        msg: "Uptime Kuma sync completed successfully."

@@ -36,4 +36,17 @@ Assuming you are in the root of your Ansible project. Your ansible.cfg is alread
    ansible-playbook playbooks/sync_proxmox_inventory.yml -K
    # Discovers current LXC/VM guests on Proxmox nodes and refreshes inventory/prod/hosts.ini.
 
+8. sync_uptime_kuma.yml
+   ansible-playbook playbooks/sync_uptime_kuma.yml -K
+   # Creates/updates Uptime Kuma monitors from kuma_services in inventory/prod/group_vars/all.yml.
+   # Safe default: keeps sensitive sync task output hidden (no_log enabled).
+   # Debug only when troubleshooting:
+   # ansible-playbook playbooks/sync_uptime_kuma.yml -K -e kuma_sync_no_log=false
+
+9. sync_netbox_omada.yml
+   ansible-playbook playbooks/sync_netbox_omada.yml -K
+   # Ingests Omada controller devices into NetBox in a separate sync pipeline.
+   # Applies changes by default (one-way Omada -> NetBox). Set omada_sync_report_only=true for a report-only run.
+   # Prints a per-link audit table by default; disable with -e omada_link_report=false if needed.
+
 If you use a different inventory or need extra variables, adjust the command accordingly.

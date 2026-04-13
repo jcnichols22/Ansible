@@ -1,0 +1,197 @@
+---
+- name: Prepare dynamic media server target
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - ../inventory/prod/group_vars/all.yml
+
+  tasks:
+    - name: Register media server target from vars
+      ansible.builtin.add_host:
+        name: docker_media_source_host
+        groups: docker_media_source
+        ansible_host: "{{ docker_service_sync_media_server_host }}"
+        ansible_user: "{{ docker_service_sync_media_server_user }}"
+
+- name: Discover Docker services with published ports on media server
+  hosts: docker_media_source
+  gather_facts: false
+
+  tasks:
+    - name: Discover compose services with published TCP ports
+      ansible.builtin.shell: |
+        python3 - <<'PY'
+        import json
+        import subprocess
+        import sys
+
+        command = ["docker", "compose", "ps", "--format", "json"]
+        result = subprocess.run(command, capture_output=True, text=True, cwd={{ docker_service_sync_compose_dir | to_json }})
+        if result.returncode != 0:
+            print(result.stderr.strip(), file=sys.stderr)
+            raise SystemExit(result.returncode)
+
+        raw = result.stdout.strip()
+        rows = []
+        if raw:
+            if raw.startswith("["):
+                rows = json.loads(raw)
+            else:
+                rows = [json.loads(line) for line in raw.splitlines() if line.strip()]
+
+        discovered = []
+        for row in rows:
+            service_name = str(row.get("Service") or row.get("Name") or "").strip()
+            if not service_name:
+                continue
+
+            publishers = row.get("Publishers") or []
+            tcp_publishers = []
+            for publisher in publishers:
+                if not isinstance(publisher, dict):
+                    continue
+                if str(publisher.get("Protocol", "")).lower() != "tcp":
+                    continue
+                published_port = publisher.get("PublishedPort")
+                if published_port in (None, ""):
+                    continue
+                published_port = int(published_port)
+                if published_port <= 0:
+                  continue
+                tcp_publishers.append(published_port)
+
+            if not tcp_publishers:
+                continue
+
+            discovered.append(
+                {
+                    "service": service_name,
+                    "published_port": sorted(tcp_publishers)[0],
+                }
+            )
+
+        discovered.sort(key=lambda item: item["service"])
+        print(json.dumps(discovered))
+        PY
+      args:
+        executable: /bin/bash
+      register: docker_service_discovery
+      changed_when: false
+
+    - name: Store discovered Docker services
+      ansible.builtin.set_fact:
+        docker_service_sync_discovered: "{{ docker_service_discovery.stdout | from_json }}"
+
+- name: Sync Docker-discovered service hosts into NPM and AdGuard Home
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - ../inventory/prod/group_vars/all.yml
+  vars:
+    docker_service_sync_services: []
+
+  tasks:
+    - name: Load local NPM secrets if present
+      ansible.builtin.include_vars:
+        file: ../inventory/prod/group_vars/npm_secrets.local.yml
+      ignore_errors: true
+
+    - name: Load local AdGuard secrets if present
+      ansible.builtin.include_vars:
+        file: ../inventory/prod/group_vars/adguard_secrets.local.yml
+      ignore_errors: true
+
+    - name: Validate sync configuration is present
+      ansible.builtin.assert:
+        that:
+          - npm_url is defined
+          - npm_url | length > 0
+          - npm_username is defined
+          - npm_username | length > 0
+          - npm_password is defined
+          - npm_password | length > 0
+          - adguard_url is defined
+          - adguard_url | length > 0
+          - adguard_username is defined
+          - adguard_username | length > 0
+          - adguard_password is defined
+          - adguard_password | length > 0
+        fail_msg: >-
+          Define npm_* in inventory/prod/group_vars/npm_secrets.local.yml and adguard_* in inventory/prod/group_vars/adguard_secrets.local.yml.
+
+    - name: Build desired service host payload from discovered Docker services
+      ansible.builtin.set_fact:
+        docker_service_sync_services: "{{ docker_service_sync_services + [ {
+          'name': ((docker_service_sync_service_overrides[item.service] | default({})).name | default(item.service)),
+          'domain': ((((docker_service_sync_service_overrides[item.service] | default({})).name | default(item.service)) | lower) ~ '.' ~ docker_service_sync_domain_suffix),
+          'backend_host': ((docker_service_sync_service_overrides[item.service] | default({})).backend_host | default(docker_service_sync_media_server_host)),
+          'backend_port': ((docker_service_sync_service_overrides[item.service] | default({})).backend_port | default(item.published_port)),
+          'backend_scheme': ((docker_service_sync_service_overrides[item.service] | default({})).backend_scheme | default(docker_service_sync_backend_scheme)),
+          'rewrite_target': ((docker_service_sync_service_overrides[item.service] | default({})).rewrite_target | default(docker_service_sync_rewrite_target))
+        } ] }}"
+      loop: "{{ hostvars['docker_media_source_host'].docker_service_sync_discovered | default([]) }}"
+      when:
+        - item.service not in docker_service_sync_service_exclude
+        - not (((docker_service_sync_service_overrides[item.service] | default({})).disabled | default(false)) | bool)
+
+    - name: Show Docker service sync count
+      ansible.builtin.debug:
+        msg: "Syncing {{ docker_service_sync_services | length }} Docker service hosts into NPM and AdGuard Home."
+
+    - name: Ensure Python tooling for venv is installed
+      ansible.builtin.command: python3 -m venv --help
+      register: docker_service_sync_venv_check
+      changed_when: false
+      failed_when: false
+
+    - name: Install Python tooling for venv when missing
+      ansible.builtin.apt:
+        name:
+          - python3-venv
+          - python3-pip
+        state: present
+        update_cache: true
+      become: true
+      when: docker_service_sync_venv_check.rc != 0
+
+    - name: Ensure virtual environment exists for service host sync
+      ansible.builtin.command: python3 -m venv {{ docker_service_sync_venv_path }}
+      args:
+        creates: "{{ docker_service_sync_venv_path }}/bin/python"
+
+    - name: Ensure pip exists inside service host sync virtual environment
+      ansible.builtin.command: "{{ docker_service_sync_venv_path }}/bin/python -m ensurepip --upgrade"
+      changed_when: false
+
+    - name: Install requests dependency in venv
+      ansible.builtin.command: "{{ docker_service_sync_venv_path }}/bin/python -m pip install --upgrade requests"
+      register: docker_service_sync_pip_install
+      changed_when: >-
+        ('Successfully installed' in docker_service_sync_pip_install.stdout) or
+        ('Requirement already satisfied' not in docker_service_sync_pip_install.stdout)
+
+    - name: Sync proxy hosts and DNS rewrites
+      ansible.builtin.command:
+        cmd: >-
+          {{ docker_service_sync_venv_path }}/bin/python
+          {{ playbook_dir }}/../scripts/sync_service_hosts.py
+          {{ (docker_service_sync_dry_run | default(false) | bool) | ternary('--dry-run', '') }}
+      environment:
+        SERVICE_HOSTS_JSON: "{{ docker_service_sync_services | to_json }}"
+        NPM_URL: "{{ npm_url }}"
+        NPM_USERNAME: "{{ npm_username }}"
+        NPM_PASSWORD: "{{ npm_password }}"
+        ADGUARD_URL: "{{ adguard_url }}"
+        ADGUARD_USERNAME: "{{ adguard_username }}"
+        ADGUARD_PASSWORD: "{{ adguard_password }}"
+      register: docker_service_sync_result
+      changed_when: >-
+        ('Created proxy host:' in docker_service_sync_result.stdout) or
+        ('Updated proxy host:' in docker_service_sync_result.stdout) or
+        ('Created rewrite:' in docker_service_sync_result.stdout) or
+        ('Updated rewrite:' in docker_service_sync_result.stdout)
+      no_log: "{{ docker_service_sync_no_log | bool }}"
+
+    - name: Show summarized Docker service sync result
+      ansible.builtin.debug:
+        msg: "Docker service host sync completed successfully."

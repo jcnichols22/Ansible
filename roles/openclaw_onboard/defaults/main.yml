@@ -1,0 +1,8 @@
+---
+openclaw_user: openclaw
+openclaw_group: ops
+openclaw_ssh_pubkey: "ssh-ed25519 AAAA...your_actual_key_HERE..."
+openclaw_extra_dirs:
+  - "/home/josh/Ansible"
+  - "/home/josh/ansible_scripts"
+
