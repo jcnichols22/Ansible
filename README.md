@@ -30,21 +30,12 @@ Ansible/
 │   │   ├── defaults/
 │   │   │   └── main.yml    # Role-specific defaults
 │   │   └── tasks/
-│   ├── dotfiles/
-│   │   ├── defaults/
-│   │   └── tasks/
-│   ├── media_server/
-│   │   ├── defaults/
 │   │   ├── meta/
 │   │   └── tasks/
 │   └── workstations/
 │       ├── defaults/
 │       └── tasks/
 ```
-
-
-
-## Variable Management
 
 - **Global/shared variables** (such as the `users` list) are defined in `inventory/prod/group_vars/all.yml` and are automatically available to all hosts and playbooks.
 - **Role-specific defaults** should be placed in each role’s `defaults/main.yml` (e.g., `roles/base/defaults/main.yml`). These are only available to that role.
@@ -54,96 +45,40 @@ Ansible/
 To run a playbook, use:
 
 ```bash
-ansible-playbook playbooks/onboard_all.yml -K
-```
 
 This will prompt for the sudo password (`-K`) and execute the onboarding playbook. Adjust the playbook name as needed for your use case.
 
 For first-time LXC onboarding (includes SSH key bootstrap + stale APT repo remediation), run:
-
 ```bash
-ansible-playbook playbooks/onboard_lxc.yml -K
 ```
-
-To sync service monitors into Uptime Kuma from Ansible vars, run:
-
-```bash
-ansible-playbook playbooks/sync_uptime_kuma.yml -K
-```
-
 This is the secure default (sync task output remains hidden). For troubleshooting only:
 
-```bash
-ansible-playbook playbooks/sync_uptime_kuma.yml -K -e kuma_sync_no_log=false
-```
 
 To sync inventory hosts into NetBox devices and management IPs, run:
 
-```bash
-ansible-playbook playbooks/sync_netbox_inventory.yml -K
-```
-
-To discover Docker services on the media server and sync `service.lan` entries into
-Nginx Proxy Manager and AdGuard Home, run:
-
-```bash
-ansible-playbook playbooks/sync_service_hosts_docker.yml -K
 ```
 
 To ingest Omada-managed network devices into NetBox (separate pipeline), run:
 
 ```bash
 ansible-playbook playbooks/sync_netbox_omada.yml -K
-```
-
-## Playbooks Overview
-
 **onboard_all.yml**: Complete onboarding for all hosts (users, SSH, media servers, workstations)
 **onboard_lxc.yml**: Onboard LXC containers with users and SSH keys
 **update_docker_media.yml**: Playbook to update Docker containers on the media server
-**update_lxc_containers.yml**: Playbook to update LXC containers
-**update_servers.yml**: Playbook to update server configurations and packages
-**sync_uptime_kuma.yml**: Creates/updates Uptime Kuma monitors from `kuma_services` in `inventory/prod/group_vars/all.yml`
-**sync_netbox_inventory.yml**: Creates/updates NetBox devices from inventory and assigns primary management IPs
-**sync_netbox_omada.yml**: Ingests Omada controller devices into NetBox (one-way Omada -> NetBox), including connected port cable sync when link data is available
-**sync_service_hosts_docker.yml**: Discovers Docker Compose services with published ports on the media server, then creates/updates matching Nginx Proxy Manager proxy hosts and AdGuard Home DNS rewrites for `service.lan`
-
-## Uptime Kuma Monitor Sync
-
-Define these variables in `inventory/prod/group_vars/all.yml`:
-
 - `kuma_url`
 - `kuma_username`
 - `kuma_password`
-- `kuma_services` (list of monitor definitions)
-
-By default, this playbook auto-generates `ping` monitors for all hosts from
 `inventory/prod/hosts.ini` (`all:!localhost`) and merges them with `kuma_services`.
 
 For authenticated Kuma instances, define local secrets in `inventory/prod/group_vars/kuma_secrets.local.yml`
-(git-ignored). Use `kuma_username` and `kuma_password` for this automation flow.
-
-Supported monitor types in this repo sync script are:
-
-- `http` (requires `url`)
 - `ping` (requires `hostname`)
 - `port` (requires `hostname`, `port`)
 - `dns` (requires `hostname`)
 
 ## NetBox Inventory Sync
-
-Define these variables in `inventory/prod/group_vars/all.yml`:
-
-- `netbox_auto_host_pattern` (default `all:!localhost`)
-- `netbox_default_site`
-- `netbox_default_device_role`
-- `netbox_default_device_status`
-- `netbox_default_manufacturer`
 - `netbox_default_device_type`
 - `netbox_mgmt_interface`
 
-Define local secrets in `inventory/prod/group_vars/netbox_secrets.local.yml`
-(git-ignored):
 
 - `netbox_url`
 - `netbox_token`

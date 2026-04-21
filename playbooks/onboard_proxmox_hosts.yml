@@ -1,0 +1,9 @@
+---
+# Playbook to onboard Proxmox hosts with base users and SSH keys
+# Usage:
+#   ansible-playbook playbooks/onboard_proxmox_hosts.yml -l proxmox_nodes
+
+- hosts: proxmox_nodes
+  become: true
+  roles:
+    - role: base

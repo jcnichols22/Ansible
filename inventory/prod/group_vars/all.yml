@@ -19,15 +19,6 @@ kuma_services:
     maxretries: 3
     retryInterval: 60
 
-netbox_auto_host_pattern: "all:!localhost"
-netbox_default_site: "Homelab"
-netbox_default_device_role: "Server"
-netbox_default_device_status: "active"
-netbox_default_manufacturer: "Generic"
-netbox_default_device_type: "Generic Server"
-netbox_mgmt_interface: "mgmt0"
-netbox_sync_dry_run: false
-netbox_sync_no_log: true
 
 omada_sync_venv_path: "{{ playbook_dir }}/../.venv/omada-netbox"
 omada_site_filter:
