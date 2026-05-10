@@ -12,10 +12,14 @@
         groups: docker_media_source
         ansible_host: "{{ docker_service_sync_media_server_host }}"
         ansible_user: "{{ docker_service_sync_media_server_user }}"
+        ansible_ssh_private_key_file: "{{ docker_service_sync_media_server_ssh_key | default('~/.ssh/id_ed25519') }}"
 
 - name: Discover Docker services with published ports on media server
+
   hosts: docker_media_source
   gather_facts: false
+  vars_files:
+    - ../inventory/prod/group_vars/all.yml
 
   tasks:
     - name: Discover compose services with published TCP ports
@@ -75,6 +79,8 @@
         PY
       args:
         executable: /bin/bash
+      become: true
+      become_user: "{{ docker_service_sync_compose_owner | default(docker_service_sync_media_server_user) }}"
       register: docker_service_discovery
       changed_when: false
 
@@ -88,6 +94,8 @@
   vars_files:
     - ../inventory/prod/group_vars/all.yml
   vars:
+    docker_service_sync_inventory_path: "{{ playbook_dir }}/../inventory/prod/hosts.ini"
+    docker_service_sync_inventory_group: docker_services
     docker_service_sync_services: []
 
   tasks:
@@ -123,6 +131,8 @@
       ansible.builtin.set_fact:
         docker_service_sync_services: "{{ docker_service_sync_services + [ {
           'name': ((docker_service_sync_service_overrides[item.service] | default({})).name | default(item.service)),
+          'inventory_name': ((((docker_service_sync_service_overrides[item.service] | default({})).name | default(item.service)) | lower) | regex_replace('[^a-z0-9_]+', '_') | regex_replace('^_+|_+$', '')),
+          'source_service': item.service,
           'domain': ((((docker_service_sync_service_overrides[item.service] | default({})).name | default(item.service)) | lower) ~ '.' ~ docker_service_sync_domain_suffix),
           'backend_host': ((docker_service_sync_service_overrides[item.service] | default({})).backend_host | default(docker_service_sync_media_server_host)),
           'backend_port': ((docker_service_sync_service_overrides[item.service] | default({})).backend_port | default(item.published_port)),
@@ -137,6 +147,24 @@
     - name: Show Docker service sync count
       ansible.builtin.debug:
         msg: "Syncing {{ docker_service_sync_services | length }} Docker service hosts into NPM and AdGuard Home."
+
+    - name: Render Docker services inventory block
+      ansible.builtin.set_fact:
+        docker_service_sync_inventory_block: |
+          [{{ docker_service_sync_inventory_group }}]
+          {% for service in docker_service_sync_services %}
+          {{ (service.inventory_name if service.inventory_name | length > 0 else 'docker_service_' ~ loop.index) }} ansible_host={{ service.backend_host }} ansible_user={{ docker_service_sync_media_server_user }} docker_service_name={{ service.source_service }} docker_service_port={{ service.backend_port }} docker_service_scheme={{ service.backend_scheme }} docker_service_domain={{ service.domain }} # {{ service.name }}
+          {% else %}
+          # none discovered
+          {% endfor %}
+
+    - name: Upsert managed Docker services block in hosts.ini
+      ansible.builtin.blockinfile:
+        path: "{{ docker_service_sync_inventory_path }}"
+        marker: "# {mark} AUTO_MANAGED_DOCKER_SERVICES"
+        block: "{{ docker_service_sync_inventory_block | trim }}"
+        create: true
+        append_newline: true
 
     - name: Ensure Python tooling for venv is installed
       ansible.builtin.command: python3 -m venv --help

@@ -7,6 +7,38 @@ users:
     sudo: true
     nopasswd: true
 
+guacamole_url: ""
+guacamole_username: ""
+guacamole_password: ""
+guacamole_connection_parent_identifier: "ROOT"
+guacamole_default_ssh_username: "ansible"
+guacamole_default_ssh_port: 22
+guacamole_sync_host_exclude:
+  - localhost
+  - apache_guacamole
+guacamole_sync_venv_path: "{{ playbook_dir }}/../.venv/guacamole-sync"
+guacamole_sync_no_log: true
+guacamole_sync_dry_run: false
+guacamole_color_scheme: |
+  background: rgb:1A/23/32
+  foreground: rgb:C7/D1/E6
+  color0: rgb:00/00/00
+  color1: rgb:FF/3E/3E
+  color2: rgb:9F/EF/00
+  color3: rgb:FF/AF/00
+  color4: rgb:00/4C/FF
+  color5: rgb:9F/00/FF
+  color6: rgb:2E/E7/B6
+  color7: rgb:FF/FF/FF
+  color8: rgb:66/66/66
+  color9: rgb:FF/84/84
+  color10: rgb:C5/F4/67
+  color11: rgb:FF/CC/5C
+  color12: rgb:5C/B2/FF
+  color13: rgb:C1/6C/FA
+  color14: rgb:5C/EC/C6
+  color15: rgb:FF/FF/FF
+
 kuma_url: "http://192.168.0.126:3001"
 kuma_username: ""
 kuma_password: ""
@@ -40,8 +72,10 @@ omada_sync_dry_run: false
 omada_sync_no_log: true
 
 docker_service_sync_media_server_host: "192.168.0.34"
-docker_service_sync_media_server_user: "josh"
-docker_service_sync_compose_dir: "/home/{{ docker_service_sync_media_server_user }}/media"
+docker_service_sync_media_server_user: "ansible"
+docker_service_sync_media_server_ssh_key: "~/.ssh/ansible"
+docker_service_sync_compose_owner: "josh"
+docker_service_sync_compose_dir: "/home/{{ docker_service_sync_compose_owner }}/media"
 docker_service_sync_domain_suffix: "lan"
 docker_service_sync_rewrite_target: "192.168.0.107"
 docker_service_sync_backend_scheme: "http"

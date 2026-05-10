@@ -160,6 +160,33 @@ Home rewrites that point to the NPM IP.
 If a matching proxy host or rewrite already exists, it is left alone unless the
 configured backend or rewrite target no longer matches the desired state.
 
+## Guacamole SSH Connection Sync
+
+Define behavior in `inventory/prod/group_vars/all.yml`:
+
+- `guacamole_connection_parent_identifier`
+- `guacamole_default_ssh_username`
+- `guacamole_default_ssh_port`
+- `guacamole_sync_host_exclude` (list)
+
+Define local secrets in git-ignored files:
+
+- `inventory/prod/group_vars/guacamole_secrets.local.yml`
+
+This playbook reads inventory hosts, skips excluded entries like `localhost`
+and `apache_guacamole`, and creates or updates SSH connections in Apache
+Guacamole using each host's `ansible_host`, `ansible_port`, and `ansible_user`
+unless a `guacamole_*` host override is provided.
+
+Per-host overrides are supported directly in inventory host vars:
+
+- `guacamole_connection_name`
+- `guacamole_ssh_host`
+- `guacamole_ssh_port`
+- `guacamole_ssh_username`
+- `guacamole_parent_identifier`
+- `guacamole_ssh_enabled`
+
 ## Roles Overview
 
 **base**: Contains common tasks and configurations shared across all servers

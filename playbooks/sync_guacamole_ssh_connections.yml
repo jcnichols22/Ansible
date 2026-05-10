@@ -1,0 +1,111 @@
+---
+- name: Prepare Guacamole SSH connection sync data
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - ../inventory/prod/group_vars/all.yml
+  vars:
+    guacamole_sync_connections: []
+
+  tasks:
+    - name: Build desired Guacamole SSH connection payload from inventory
+      ansible.builtin.set_fact:
+        guacamole_sync_connections: "{{ guacamole_sync_connections + [ {
+          'name': (hostvars[item].guacamole_connection_name | default(item)),
+          'hostname': (hostvars[item].guacamole_ssh_host | default(hostvars[item].ansible_host | default(item))),
+          'port': (hostvars[item].guacamole_ssh_port | default(hostvars[item].ansible_port | default(guacamole_default_ssh_port))),
+          'username': (hostvars[item].guacamole_ssh_username | default((item in (groups['lxc_containers'] | default([]))) | ternary('root', hostvars[item].ansible_user | default(guacamole_default_ssh_username)))),
+          'parent_identifier': (hostvars[item].guacamole_parent_identifier | default(guacamole_connection_parent_identifier)),
+          'attributes': (hostvars[item].guacamole_attributes | default({})),
+          'private_key': (hostvars[item].guacamole_ssh_private_key | default('')),
+          'private_key_passphrase': (hostvars[item].guacamole_ssh_private_key_passphrase | default('')),
+          'color_scheme': (hostvars[item].guacamole_color_scheme | default(guacamole_color_scheme | default('')))
+        } ] }}"
+      loop: "{{ (groups['all'] | default([]) | difference(guacamole_sync_host_exclude | default([])) | difference(groups['docker_services'] | default([]))) | sort }}"
+      when:
+        - item != 'localhost'
+        - hostvars[item].ansible_host is defined
+        - not (hostvars[item].guacamole_ssh_enabled is defined and not (hostvars[item].guacamole_ssh_enabled | bool))
+
+    - name: Show Guacamole SSH connection sync count
+      ansible.builtin.debug:
+        msg: "Syncing {{ guacamole_sync_connections | length }} SSH connections into Apache Guacamole."
+
+- name: Sync inventory SSH connections into Apache Guacamole
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - ../inventory/prod/group_vars/all.yml
+
+  tasks:
+    - name: Load local Guacamole secrets if present
+      ansible.builtin.include_vars:
+        file: ../inventory/prod/group_vars/guacamole_secrets.local.yml
+      ignore_errors: true
+
+    - name: Validate Guacamole sync configuration is present
+      ansible.builtin.assert:
+        that:
+          - guacamole_url is defined
+          - guacamole_url | length > 0
+          - guacamole_username is defined
+          - guacamole_username | length > 0
+          - guacamole_password is defined
+          - guacamole_password | length > 0
+        fail_msg: >-
+          Define guacamole_url, guacamole_username, and guacamole_password in
+          inventory/prod/group_vars/guacamole_secrets.local.yml.
+
+    - name: Ensure Python tooling for venv is installed
+      ansible.builtin.command: python3 -m venv --help
+      register: guacamole_sync_venv_check
+      changed_when: false
+      failed_when: false
+
+    - name: Install Python tooling for venv when missing
+      ansible.builtin.apt:
+        name:
+          - python3-venv
+          - python3-pip
+        state: present
+        update_cache: true
+      become: true
+      when: guacamole_sync_venv_check.rc != 0
+
+    - name: Ensure virtual environment exists for Guacamole sync
+      ansible.builtin.command: python3 -m venv {{ guacamole_sync_venv_path }}
+      args:
+        creates: "{{ guacamole_sync_venv_path }}/bin/python"
+
+    - name: Ensure pip exists inside Guacamole sync virtual environment
+      ansible.builtin.command: "{{ guacamole_sync_venv_path }}/bin/python -m ensurepip --upgrade"
+      changed_when: false
+
+    - name: Install requests dependency in venv
+      ansible.builtin.command: "{{ guacamole_sync_venv_path }}/bin/python -m pip install --upgrade requests"
+      register: guacamole_sync_pip_install
+      changed_when: >-
+        ('Successfully installed' in guacamole_sync_pip_install.stdout) or
+        ('Requirement already satisfied' not in guacamole_sync_pip_install.stdout)
+
+    - name: Sync Guacamole SSH connections
+      ansible.builtin.command:
+        cmd: >-
+          {{ guacamole_sync_venv_path }}/bin/python
+          {{ playbook_dir }}/../scripts/sync_guacamole_ssh_connections.py
+          {{ (guacamole_sync_dry_run | default(false) | bool) | ternary('--dry-run', '') }}
+      environment:
+        GUACAMOLE_CONNECTIONS_JSON: "{{ guacamole_sync_connections | to_json }}"
+        GUACAMOLE_URL: "{{ guacamole_url }}"
+        GUACAMOLE_USERNAME: "{{ guacamole_username }}"
+        GUACAMOLE_PASSWORD: "{{ guacamole_password }}"
+        GUACAMOLE_COLOR_SCHEME: "{{ guacamole_color_scheme | default('') }}"
+      register: guacamole_sync_result
+      changed_when: >-
+        'Created connection:' in guacamole_sync_result.stdout or
+        'Updated color scheme:' in guacamole_sync_result.stdout
+      no_log: "{{ guacamole_sync_no_log | bool }}"
+
+    - name: Show summarized Guacamole sync result
+      ansible.builtin.debug:
+        msg: "Guacamole SSH connection sync completed successfully."

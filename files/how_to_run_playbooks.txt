@@ -1,52 +1,58 @@
+
 How to Run Each Ansible Playbook
 ================================
 
-
 Assuming you are in the root of your Ansible project. Your ansible.cfg is already set up, so you do not need to specify the inventory file each time.
 
+---
 
-1. onboard_all.yml
+onboard_all.yml
    ansible-playbook playbooks/onboard_all.yml
 
-0. bootstrap_lxc_ssh_keys.yml (run once when LXC root SSH key auth is missing)
+bootstrap_lxc_ssh_keys.yml (run once when LXC root SSH key auth is missing)
    ansible-playbook playbooks/bootstrap_lxc_ssh_keys.yml -K
    # Injects ~/.ssh/ansible.pub into root authorized_keys for LXC guests via Proxmox pct exec.
 
-2. onboard_lxc.yml
+onboard_lxc.yml
    ansible-playbook playbooks/onboard_lxc.yml -K
-   # Single-command LXC onboarding: cleans known_hosts, bootstraps root SSH keys via Proxmox, and remediates stale APT repos.
-   # If proxmox_nodes has passwordless sudo configured, -K is optional.
+   # Cleans known_hosts, bootstraps root SSH keys via Proxmox, remediates stale APT repos.
 
-3. update_docker_media.yml
+update_docker_media.yml
    ansible-playbook playbooks/update_docker_media.yml
+   # Updates and restarts all Docker media services on the media server.
 
-4. remediate_lxc_apt_repos.yml
+remediate_lxc_apt_repos.yml
    ansible-playbook playbooks/remediate_lxc_apt_repos.yml
-   # Optional manual cleanup pass. update_lxc_containers.yml now includes this remediation automatically.
+   # Manual cleanup of stale APT repos on LXC containers.
 
-5. update_lxc_containers.yml
+update_lxc_containers.yml
    ansible-playbook playbooks/update_lxc_containers.yml
-   # Includes automatic stale-repo remediation by default.
-   # Disable remediation with: ansible-playbook playbooks/update_lxc_containers.yml -e lxc_apt_auto_remediate=false
+   # Updates all LXC containers, includes stale-repo remediation.
 
-6. update_servers.yml
+update_servers.yml
    ansible-playbook playbooks/update_servers.yml
+   # Updates all Ubuntu servers (proxmox_nodes, media_server).
 
-7. sync_proxmox_inventory.yml
+sync_proxmox_inventory.yml
    ansible-playbook playbooks/sync_proxmox_inventory.yml -K
-   # Discovers current LXC/VM guests on Proxmox nodes and refreshes inventory/prod/hosts.ini.
+   # Discovers LXC/VM guests on Proxmox nodes, refreshes inventory.
 
-8. sync_uptime_kuma.yml
+sync_uptime_kuma.yml
    ansible-playbook playbooks/sync_uptime_kuma.yml -K
-   # Creates/updates Uptime Kuma monitors from kuma_services in inventory/prod/group_vars/all.yml.
-   # Safe default: keeps sensitive sync task output hidden (no_log enabled).
-   # Debug only when troubleshooting:
-   # ansible-playbook playbooks/sync_uptime_kuma.yml -K -e kuma_sync_no_log=false
+   # Syncs service monitors to Uptime Kuma.
 
-9. sync_netbox_omada.yml
-   ansible-playbook playbooks/sync_netbox_omada.yml -K
-   # Ingests Omada controller devices into NetBox in a separate sync pipeline.
-   # Applies changes by default (one-way Omada -> NetBox). Set omada_sync_report_only=true for a report-only run.
-   # Prints a per-link audit table by default; disable with -e omada_link_report=false if needed.
+sync_service_hosts_docker.yml
+   ansible-playbook playbooks/sync_service_hosts_docker.yml -K
+   # Discovers Docker services with published ports on the media server and refreshes a managed docker_services inventory block.
+
+openclaw_onboard_machine.yml
+   ansible-playbook playbooks/openclaw_onboard_machine.yml -l <target_host> -K
+   # Onboards a single machine to openclaw automation.
+
+onboard_proxmox_hosts.yml
+   ansible-playbook playbooks/onboard_proxmox_hosts.yml -l proxmox_nodes
+   # Onboards Proxmox hosts with base users and SSH keys.
+
+---
 
 If you use a different inventory or need extra variables, adjust the command accordingly.
