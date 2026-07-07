@@ -5,11 +5,6 @@
   become: true
   ignore_unreachable: true
 
-  pre_tasks:
-    - name: Skip Proxmox nodes (incompatible Ansible target)
-      ansible.builtin.meta: end_host
-      when: ansible_distribution is not defined or 'Proxmox' in (ansible_distribution | default '')
-
   tasks:
     - name: Detect package manager
       ansible.builtin.set_fact:
