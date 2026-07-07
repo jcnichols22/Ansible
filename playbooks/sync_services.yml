@@ -1,0 +1,199 @@
+---
+- name: Discover Proxmox LXC/VM guests
+  hosts: proxmox_nodes
+  gather_facts: false
+  ignore_unreachable: true
+  become: true
+  tasks:
+    - name: Discover LXC/VM guests and IPs via Proxmox CLI
+      ansible.builtin.shell:
+        executable: /bin/bash
+        cmd: |
+          python3 - <<'PY'
+          import json, re, socket, subprocess
+
+          def run(cmd):
+              return subprocess.run(cmd, capture_output=True, text=True)
+
+          def first_ipv4(text):
+              for tok in text.split():
+                  if re.match(r"^\d+\.\d+\.\d+\.\d+$", tok) and not tok.startswith("127."):
+                      return tok
+              return ""
+
+          def lxc_runtime_ip(vmid):
+              r = run(["pct", "exec", str(vmid), "--", "hostname", "-I"])
+              return first_ipv4(r.stdout.strip()) if r.returncode == 0 else ""
+
+          def lxc_config_meta(vmid):
+              host, ip = "", ""
+              r = run(["pct", "config", str(vmid)])
+              if r.returncode != 0:
+                  return host, ip
+              for line in r.stdout.splitlines():
+                  if line.startswith("hostname:"):
+                      host = line.split(":", 1)[1].strip()
+                  if line.startswith("net") and "ip=" in line:
+                      m = re.search(r"ip=([^,]+)", line)
+                      if m:
+                          c = m.group(1).strip()
+                          if c.lower() not in {"dhcp", "manual", "auto"}:
+                              ip = c.split("/")[0]
+                              break
+              if not ip:
+                  ip = lxc_runtime_ip(vmid)
+              return host, ip
+
+          def qemu_config_meta(vmid):
+              host, ip = "", ""
+              r = run(["qm", "config", str(vmid)])
+              if r.returncode == 0:
+                  for line in r.stdout.splitlines():
+                      if line.startswith("name:"):
+                          host = line.split(":", 1)[1].strip()
+                          break
+              r2 = run(["qm", "guest", "cmd", str(vmid), "network-get-interfaces"])
+              if r2.returncode == 0:
+                  try:
+                      for iface in json.loads(r2.stdout):
+                          if iface.get("name", "").startswith("lo"):
+                              continue
+                          for addr in iface.get("ip-addresses", []):
+                              if addr.get("ip-address-type") == "ipv4":
+                                  ip = addr.get("ip-address", "")
+                                  if ip and not ip.startswith("127."):
+                                      break
+                          if ip:
+                              break
+                  except json.JSONDecodeError:
+                      pass
+              return host, ip
+
+          node = socket.gethostname().split(".")[0]
+          out = []
+
+          for line in run(["pct", "list"]).stdout.splitlines()[1:]:
+              parts = line.split()
+              if not parts or not parts[0].isdigit():
+                  continue
+              vmid = parts[0]
+              host, ip = lxc_config_meta(vmid)
+              out.append({"vmid": int(vmid), "name": host or f"lxc_{vmid}", "ip": ip, "type": "lxc", "node": node})
+
+          for line in run(["qm", "list"]).stdout.splitlines()[1:]:
+              parts = line.split()
+              if not parts or not parts[0].isdigit():
+                  continue
+              vmid = parts[0]
+              host, ip = qemu_config_meta(vmid)
+              out.append({"vmid": int(vmid), "name": host or f"vm_{vmid}", "ip": ip, "type": "vm", "node": node})
+
+          print(json.dumps(out))
+          PY
+      register: proxmox_guest_discovery
+      changed_when: false
+
+- name: Discover Docker services on media server
+  hosts: media_server
+  gather_facts: false
+  tasks:
+    - name: Query compose ps for published TCP ports
+      ansible.builtin.shell: |
+        python3 - <<'PY'
+        import json, subprocess, sys
+        command = ["docker", "compose", "ps", "--format", "json"]
+        result = subprocess.run(command, capture_output=True, text=True, cwd={{ docker_service_sync_compose_dir | to_json }})
+        if result.returncode != 0:
+            print(result.stderr.strip(), file=sys.stderr)
+            raise SystemExit(result.returncode)
+        raw = result.stdout.strip()
+        rows = []
+        if raw:
+            rows = json.loads(raw) if raw.startswith("[") else [json.loads(l) for l in raw.splitlines() if l.strip()]
+        out = []
+        for row in rows:
+          svc = str(row.get("Service") or row.get("Name") or "").strip()
+          if not svc:
+              continue
+          ports = sorted(int(p["PublishedPort"]) for p in (row.get("Publishers") or []) if isinstance(p, dict) and str(p.get("Protocol","")).lower()=="tcp" and p.get("PublishedPort"))
+          if not ports:
+              continue
+          out.append({"service": svc, "name": svc.lower().replace("-", "_"), "port": ports[0]})
+        out.sort(key=lambda i: i["service"])
+        print(json.dumps(out))
+        PY
+      register: docker_service_discovery
+      changed_when: false
+
+- name: Aggregate guest discovery and write hosts.ini managed blocks
+  hosts: localhost
+  gather_facts: false
+  vars:
+    inventory_path: "{{ playbook_dir }}/../inventory/prod/hosts.ini"
+
+  tasks:
+    - name: Collect Proxmox guest lists from all nodes
+      ansible.builtin.set_fact:
+        proxmox_guest_list: "{{ ansible_play_hosts_all | map('extract', hostvars, 'proxmox_guest_discovery') | selectattr('stdout', 'defined') | map(attribute='stdout') | map('from_json') | list | flatten }}"
+      run_once: true
+
+    - name: Collect Docker service lists from media server
+      ansible.builtin.set_fact:
+        docker_services_list: "{{ (ansible_play_hosts_all | select('in', groups.get('media_server', [])) | list | length > 0) | ternary(((groups['media_server'] | map('extract', hostvars, 'docker_service_discovery')) | selectattr('stdout','defined') | map(attribute='stdout') | map('from_json') | list | flatten), []) }}"
+      run_once: true
+
+    - name: Render Proxmox managed guest block
+      ansible.builtin.set_fact:
+        proxmox_block: |-
+          [lxc_containers]
+          {% for g in proxmox_guest_list | selectattr('type','equalto','lxc') | sort(attribute='vmid') %}
+          {% set name = g.name | lower | regex_replace('[^a-z0-9_]+', '_') | regex_replace('^_+|_+$', '') %}
+          {% if name %}
+          {{ name }} ansible_host={{ g.ip }} # {{ g.name }} ({{ g.node }}:{{ g.vmid }})
+          {% endif %}
+          {% endfor %}
+
+          [vms]
+          {% for g in proxmox_guest_list | selectattr('type','equalto','vm') | sort(attribute='vmid') %}
+          {% set name = g.name | lower | regex_replace('[^a-z0-9_]+', '_') | regex_replace('^_+|_+$', '') %}
+          {% if name %}
+          {{ name }} ansible_host={{ g.ip }} # {{ g.name }} ({{ g.node }}:{{ g.vmid }})
+          {% endif %}
+          {% endfor %}
+      run_once: true
+
+    - name: Render Docker managed services block
+      ansible.builtin.set_fact:
+        docker_block: |-
+          [docker_services]
+          {% for s in docker_services_list | sort(attribute='service') %}
+          {{ s.name }} ansible_host={{ docker_service_sync_media_server_host }} docker_service_name={{ s.service }} docker_service_port={{ s.port }} docker_service_scheme=http docker_service_domain={{ s.name }}.{{ docker_service_sync_domain_suffix }} # {{ s.service }}
+          {% endfor %}
+      run_once: true
+
+    - name: Write Proxmox guest block to hosts.ini
+      ansible.builtin.blockinfile:
+        path: "{{ inventory_path }}"
+        marker: "# {mark} AUTO_MANAGED_GUESTS"
+        block: "{{ proxmox_block }}"
+        create: true
+        insertafter: "^# END AUTO_MANAGED_GUESTS$"
+        backup: true
+      run_once: true
+
+    - name: Write Docker services block to hosts.ini
+      ansible.builtin.blockinfile:
+        path: "{{ inventory_path }}"
+        marker: "# {mark} AUTO_MANAGED_DOCKER_SERVICES"
+        block: "{{ docker_block }}"
+        create: true
+        insertafter: "^# END AUTO_MANAGED_DOCKER_SERVICES$"
+        backup: true
+      run_once: true
+
+    - name: Report managed sections updated
+      ansible.builtin.debug:
+        msg:
+          - "Proxmox guests: {{ proxmox_guest_list | length }}"
+          - "Docker services: {{ docker_services_list | length }}"
+      run_once: true
