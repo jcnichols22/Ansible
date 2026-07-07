@@ -1,0 +1,97 @@
+---
+- name: Update Nginx Proxy Manager and restart nginx
+  hosts: nginxproxymanager
+  gather_facts: true
+  become: true
+  ignore_unreachable: true
+  tasks:
+    - name: Ensure system packages are current
+      ansible.builtin.apt:
+        update_cache: true
+        upgrade: dist
+        autoremove: true
+        autoclean: true
+      register: npm_apt
+      tags: npm
+
+    - name: Report OS package changes on NPM host
+      ansible.builtin.debug:
+        msg: "System packages updated on {{ inventory_hostname }}"
+      when: npm_apt is changed
+      tags: npm
+
+    - name: Locate NPM install directory
+      ansible.builtin.command: find / -maxdepth 3 -type d -name 'nginx-proxy-manager' 2>/dev/null | head -1
+      register: npm_install_dir
+      changed_when: false
+      tags: npm
+
+    - name: Update Node.js dependencies in NPM install directory
+      ansible.builtin.shell: |
+        set -euo pipefail
+        dir="{{ npm_install_dir.stdout | trim }}"
+        if [ -z "$dir" ] || [ ! -d "$dir" ]; then
+            echo "NPM install dir not found; skipping"
+            exit 0
+        fi
+        cd "$dir"
+        npm update --production 2>&1
+      register: npm_update_result
+      changed_when: "'updated' in npm_update_result.stdout or npm_update_result.rc != 0"
+      failed_when: false
+      when: npm_install_dir is defined and npm_install_dir.stdout | trim | length > 0
+      tags: npm
+
+    - name: Report npm update outcome
+      ansible.builtin.debug:
+        msg: "{{ npm_update_result.stdout_lines[-5:] | default(npm_update_result.stdout_lines) }}"
+      when: npm_install_dir is defined and npm_install_dir.stdout | trim | length > 0
+      tags: npm
+
+    - name: Restart nginx to apply updates
+      ansible.builtin.service:
+        name: nginx
+        state: restarted
+      tags: npm
+
+- name: Update AdGuard Home and restart service
+  hosts: adguard
+  gather_facts: true
+  become: true
+  ignore_unreachable: true
+  tasks:
+    - name: Ensure system packages are current
+      ansible.builtin.apt:
+        update_cache: true
+        upgrade: dist
+        autoremove: true
+        autoclean: true
+      register: adguard_apt
+      tags: adguard
+
+    - name: Report OS package changes on AdGuard host
+      ansible.builtin.debug:
+        msg: "System packages updated on {{ inventory_hostname }}"
+      when: adguard_apt is changed
+      tags: adguard
+
+    - name: Self-update AdGuard Home binary
+      ansible.builtin.shell: |
+        set -euo pipefail
+        /opt/AdGuardHome/AdGuardHome --self-update 2>&1
+      register: adguard_self_update
+      changed_when: adguard_self_update.rc == 0
+      failed_when: false
+      tags: adguard
+
+    - name: Report AdGuard update outcome
+      ansible.builtin.debug:
+        msg: "{{ adguard_self_update.stdout_lines[-5:] | default(adguard_self_update.stdout_lines) }}"
+      when: adguard_self_update is defined
+      tags: adguard
+
+    - name: Restart AdGuard Home service
+      ansible.builtin.service:
+        name: AdGuardHome
+        state: restarted
+      tags: adguard
