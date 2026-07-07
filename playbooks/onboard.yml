@@ -1,0 +1,28 @@
+---
+- name: Bootstrap the base role across all managed hosts
+  hosts: proxmox_nodes, lxc_containers, media_server
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Ensure local files/ ssh_key directory exists
+      ansible.builtin.file:
+        path: "{{ playbook_dir }}/../files/ssh_keys"
+        state: directory
+        mode: "0700"
+      delegate_to: localhost
+      run_once: true
+
+    - name: Read ansible public key from files/ssh_keys/ansible.pub
+      ansible.builtin.slurp:
+        src: "{{ playbook_dir }}/../files/ssh_keys/ansible.pub"
+      register: ansible_pubkey_raw
+      delegate_to: localhost
+      run_once: true
+
+    - name: Set ansible_pubkey fact
+      ansible.builtin.set_fact:
+        ansible_pubkey: "{{ ansible_pubkey_raw.content | b64decode | trim }}"
+
+  roles:
+    - base
