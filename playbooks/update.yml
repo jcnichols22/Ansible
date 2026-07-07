@@ -1,24 +1,26 @@
 ---
-- name: Update OS packages on managed hosts
-  hosts: proxmox_nodes, lxc_containers, media_server
+- name: Update OS packages on every managed host
+  hosts: all
   gather_facts: true
   become: true
   ignore_unreachable: true
 
-  vars:
-    update_snap_refresh: true
+  pre_tasks:
+    - name: Skip Proxmox nodes (incompatible Ansible target)
+      ansible.builtin.meta: end_host
+      when: ansible_distribution is not defined or 'Proxmox' in (ansible_distribution | default '')
 
   tasks:
-    - name: Detect package manager family
+    - name: Detect package manager
       ansible.builtin.set_fact:
         pkg_mgr: "{{ 'apt' if ansible_pkg_mgr == 'apt' else omit }}"
 
-    - name: Update apt cache
+    - name: Update apt cache (apt hosts)
       ansible.builtin.apt:
         update_cache: true
         cache_valid_time: 3600
       when: pkg_mgr is defined
-      tags: apt
+      tags: [apt, os]
 
     - name: Upgrade all apt packages
       ansible.builtin.apt:
@@ -27,36 +29,34 @@
         autoclean: true
       when: pkg_mgr is defined
       register: apt_upgrade
-      tags: apt
+      changed_when: apt_upgrade is changed
+      tags: [apt, os]
 
-    - name: Report apt upgrade changes
+    - name: Report apt changes
       ansible.builtin.debug:
-        msg: "Upgraded {{ apt_upgrade.stdout_lines | length }} packages on {{ inventory_hostname }}"
-      when: pkg_upgrade is defined and apt_upgrade is changed
-      tags: apt
+        msg: "OS upgraded on {{ inventory_hostname }} ({{ apt_upgrade.stdout_lines | length }} packages)"
+      when: apt_upgrade is changed
+      tags: [apt, os]
 
-    - name: Check if snapd is present
-      ansible.builtin.command: which snap
-      register: snap_check
-      changed_when: false
-      failed_when: false
-      when: ansible_distribution == "Ubuntu"
-
-    - name: Refresh all installed snaps
+    - name: Refresh all installed snaps (Ubuntu)
       ansible.builtin.command: snap refresh
       register: snap_refresh
       changed_when: "'All snaps up to date' not in snap_refresh.stdout"
       failed_when: false
       when:
-        - ansible_distribution == "Ubuntu"
-        - snap_check.rc == 0
-        - update_snap_refresh | default(false)
-      tags: snap
+        - ansible_distribution == 'Ubuntu'
+      tags: [snap, os]
 
-    - name: Report snap refresh changes
+    - name: Report snap changes
       ansible.builtin.debug:
-        msg: "{{ snap_refresh.stdout_lines }}"
+        msg: "Snap refresh on {{ inventory_hostname }}: {{ snap_refresh.stdout | trim }}"
+      when: snap_refresh is changed
+      tags: [snap, os]
+
+    - name: Restart hosts that were upgraded
+      ansible.builtin.reboot:
+        reboot_timeout: 300
       when:
-        - snap_refresh is defined
-        - snap_refresh is changed
-      tags: snap
+        - apt_upgrade is defined and apt_upgrade is changed
+        - ansible_service_mgr in ['systemd', 'init']
+      tags: [apt, os, reboot]

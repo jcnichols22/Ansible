@@ -1,0 +1,177 @@
+---
+- name: Ensure services use service.lan domains instead of raw IPs
+  hosts: all
+  gather_facts: true
+  ignore_unreachable: true
+  vars_files:
+    - "{{ playbook_dir }}/../inventory/prod/group_vars/all.yml"
+
+  vars:
+    inventory_path: "{{ playbook_dir }}/../inventory/prod/hosts.ini"
+    services_lan_domain_suffix: "lan"
+    services_lan_npm_host: "nginxproxymanager"
+    services_lan_adguard_host: "adguard"
+    # NPM API (default creds for self-hosted instance)
+    services_lan_npm_api_url: "http://127.0.0.1:81/api"
+    services_lan_npm_email: "{{ lookup('env', 'NPM_EMAIL') }}"
+    services_lan_npm_password: "{{ lookup('env', 'NPM_PASSWORD') }}"
+    # AdGuard Home local-DNS API (uses auth_id returned by /control/access)
+    services_lan_adguard_api_url: "http://127.0.0.1:3000"
+    services_lan_media_server_ip: "192.168.0.34"
+    services_lan_media_docker_network: "lan"
+
+  pre_tasks:
+    - name: Skip Proxmox nodes — not a service target
+      ansible.builtin.meta: end_host
+      when: ansible_distribution is not defined or 'Proxmox' in (ansible_distribution | default '')
+
+    - name: Read hosts.ini
+      ansible.builtin.slurp:
+        src: "{{ inventory_path }}"
+      register: hosts_ini_raw
+      delegate_to: localhost
+      run_once: true
+      tags: [always]
+
+    - name: Extract docker_service_name= values from [docker_services] block
+      ansible.builtin.set_fact:
+        services_lan_docker_services: >-
+          {{
+            (hosts_ini_raw.content | b64decode).splitlines()
+            | select('search', '^docker_service_name=')
+            | map('regex_replace', '^docker_service_name=([\\S]+).*$', '\\1')
+            | list
+          }}
+      delegate_to: localhost
+      run_once: true
+      tags: [always]
+
+    - name: De-duplicate and sort service names
+      ansible.builtin.set_fact:
+        services_lan_service_list: "{{ services_lan_docker_services | unique | sort }}"
+      delegate_to: localhost
+      run_once: true
+      tags: [always]
+
+    - name: Resolve media server target IP
+      ansible.builtin.set_fact:
+        services_lan_media_server_ip: "{{ hostvars['media_server']['ansible_host'] | default(services_lan_media_server_ip) }}"
+      delegate_to: localhost
+      run_once: true
+      tags: [always]
+
+    - name: Report discovered services
+      ansible.builtin.debug:
+        msg: "service.lan targets: {{ services_lan_service_list }} → {{ services_lan_media_server_ip }}"
+      delegate_to: localhost
+      run_once: true
+      tags: [always]
+
+  tasks:
+    # ─── NPM: rewrite proxy hosts to service.lan ───────────────────
+    - name: Configure NPM proxy hosts to use service.lan domains
+      when: inventory_hostname == services_lan_npm_host
+      block:
+        - name: Authenticate to NPM API
+          ansible.builtin.uri:
+            url: "{{ services_lan_npm_api_url }}/tokens/admin"
+            method: POST
+            body_format: json
+            body:
+              email: "{{ services_lan_npm_email }}"
+              password: "{{ services_lan_npm_password }}"
+            status_code: 201
+          register: npm_auth
+          no_log: true
+          tags: [npm]
+
+        - name: Fetch all proxy hosts from NPM
+          ansible.builtin.uri:
+            url: "{{ services_lan_npm_api_url }}/proxy-hosts"
+            method: GET
+            headers:
+              Authorization: "Bearer {{ npm_auth.json.token }}"
+          register: npm_proxy_hosts
+          tags: npm
+
+        - name: Update proxy hosts that reference raw IPs
+          ansible.builtin.uri:
+            url: "{{ services_lan_npm_api_url }}/proxy-hosts/{{ item.id }}"
+            method: PATCH
+            headers:
+              Authorization: "Bearer {{ npm_auth.json.token }}"
+              Content-Type: "application/json"
+            body: >-
+              {{
+                item | combine({
+                  'domain_names': [ item.domain_names[0] ~ '.' ~ services_lan_domain_suffix ],
+                  'forward_scheme': 'http',
+                  'forward_host': services_lan_media_server_ip,
+                  'forward_port': item.forward_port
+                })
+              }}
+            status_code: 200
+          loop: >-
+            {{
+              npm_proxy_hosts.json | selectattr('forward_host', 'search', '^\\d+\\.\\d+\\.\\d+\\.\\d+$')
+              | rejectattr('domain_names', 'search', '\\.' ~ services_lan_domain_suffix ~ '$')
+            }}
+          register: npm_updated
+          tags: npm
+
+        - name: Report NPM domain updates
+          ansible.builtin.debug:
+            msg: "Updated {{ npm_updated.results | selectattr('changed','defined') | list | length }} proxy host(s) to service.lan"
+          tags: npm
+
+    # ─── AdGuard: create local-DNS records ─────────────────────────
+    - name: Configure AdGuardHome local DNS for service.lan
+      when: inventory_hostname == services_lan_adguard_host
+      block:
+        - name: Request AdGuardHome local DNS API access (auth ID)
+          ansible.builtin.uri:
+            url: "{{ services_lan_adguard_api_url }}/control/access"
+            method: POST
+            body_format: json
+            body:
+              name: "ansible-{{ ansible_date_time.iso8601_micro | regex_replace('[:.]', '-') }}"
+              duration: 28800
+            status_code: 200
+          register: adguard_auth
+          no_log: true
+          tags: [adguard]
+
+        - name: Fetch existing local DNS rewrite rules
+          ansible.builtin.uri:
+            url: "{{ services_lan_adguard_api_url }}/control/dns_config"
+            method: GET
+            headers:
+              Authorization: "Bearer {{ adguard_auth.json.access_token }}"
+          register: adguard_dns_config
+          tags: adguard
+
+        - name: Add/update local DNS rewrite records for services
+          ansible.builtin.uri:
+            url: "{{ services_lan_adguard_api_url }}/control/dns_config"
+            method: POST
+            headers:
+              Authorization: "Bearer {{ adguard_auth.json.access_token }}"
+              Content-Type: "application/json"
+            body: >-
+              {{
+                existing_rewrites + [{
+                  'domain': item ~ '.' ~ services_lan_domain_suffix,
+                  'answer': services_lan_media_server_ip
+                }]
+              }}
+            status_code: 200
+          loop: "{{ services_lan_service_list }}"
+          vars:
+            existing_rewrites: "{{ adguard_dns_config.json.filtering.local_dns | default([]) }}"
+          register: adguard_dns_updated
+          tags: adguard
+
+        - name: Report AdGuard DNS records added
+          ansible.builtin.debug:
+            msg: "{{ services_lan_service_list | length }} local DNS record(s) ensured for service.lan on AdGuardHome"
+          tags: adguard
