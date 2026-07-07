@@ -1,0 +1,62 @@
+---
+- name: Update OS packages on managed hosts
+  hosts: proxmox_nodes, lxc_containers, media_server
+  gather_facts: true
+  become: true
+  ignore_unreachable: true
+
+  vars:
+    update_snap_refresh: true
+
+  tasks:
+    - name: Detect package manager family
+      ansible.builtin.set_fact:
+        pkg_mgr: "{{ 'apt' if ansible_pkg_mgr == 'apt' else omit }}"
+
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+      when: pkg_mgr is defined
+      tags: apt
+
+    - name: Upgrade all apt packages
+      ansible.builtin.apt:
+        upgrade: dist
+        autoremove: true
+        autoclean: true
+      when: pkg_mgr is defined
+      register: apt_upgrade
+      tags: apt
+
+    - name: Report apt upgrade changes
+      ansible.builtin.debug:
+        msg: "Upgraded {{ apt_upgrade.stdout_lines | length }} packages on {{ inventory_hostname }}"
+      when: pkg_upgrade is defined and apt_upgrade is changed
+      tags: apt
+
+    - name: Check if snapd is present
+      ansible.builtin.command: which snap
+      register: snap_check
+      changed_when: false
+      failed_when: false
+      when: ansible_distribution == "Ubuntu"
+
+    - name: Refresh all installed snaps
+      ansible.builtin.command: snap refresh
+      register: snap_refresh
+      changed_when: "'All snaps up to date' not in snap_refresh.stdout"
+      failed_when: false
+      when:
+        - ansible_distribution == "Ubuntu"
+        - snap_check.rc == 0
+        - update_snap_refresh | default(false)
+      tags: snap
+
+    - name: Report snap refresh changes
+      ansible.builtin.debug:
+        msg: "{{ snap_refresh.stdout_lines }}"
+      when:
+        - snap_refresh is defined
+        - snap_refresh is changed
+      tags: snap
